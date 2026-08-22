@@ -137,6 +137,21 @@
   .tag.pr-mid{background:var(--surface-2); color:var(--text-dim);}
   .tag.pr-low{background:var(--surface-2); color:var(--text-faint);}
   .tag.locked{background:var(--surface-2); color:var(--text-faint); font-family:var(--font-mono);}
+  .tag.extra{background:transparent; border:1px dashed var(--ok); color:var(--ok);}
+  .today-clear{
+    display:flex; align-items:center; gap:8px; margin-top:10px;
+    padding:8px 12px; border-radius:8px; font-size:0.82rem;
+    background:var(--ok-bg); color:var(--ok); border:1px solid var(--ok);
+  }
+  .extra-section{margin-top:14px; padding-top:12px; border-top:1px dashed var(--border);}
+  .extra-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .extra-toggle{
+    background:none; border:none; padding:2px 0; cursor:pointer;
+    font-family:var(--font-display); font-weight:700; font-size:0.92rem; color:var(--text);
+  }
+  .extra-toggle:hover{color:var(--accent);}
+  .extra-toggle:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+  .extra-hint{font-size:0.72rem; color:var(--text-faint);}
   .task-actions{display:flex; gap:6px; flex-shrink:0;}
   .task-actions button{
     background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:6px;
@@ -227,6 +242,8 @@
         <div class="progress-bar"><div id="todayProgressBar" style="width:0%"></div></div>
         <div style="font-size:0.78rem; color:var(--text-dim); font-family:var(--font-mono);" id="todaySummary"></div>
         <div id="todayList" style="margin-top:8px;"></div>
+        <div id="todayClear"></div>
+        <div id="extraSection" class="extra-section"></div>
       </div>
     </div>
 
@@ -457,7 +474,8 @@
       settings: { examDate: "2026-11-15", dailyHoursDefault: 5, warnThreshold: 6, dailyOverrides: {} },
       pool: buildDefaultPool(),
       dailyPlans: {},
-      dailyFocus: {}
+      dailyFocus: {},
+      dailyExtras: {}
     };
   }
 
@@ -472,6 +490,7 @@
         if(!state.pool) state.pool = [];
         if(!state.dailyPlans) state.dailyPlans = {};
         if(!state.dailyFocus) state.dailyFocus = {};
+        if(!state.dailyExtras) state.dailyExtras = {};
       } else {
         state = defaultState();
         saveState();
@@ -510,6 +529,21 @@
 
   function getFocus(dateStr){
     return state.dailyFocus[dateStr] || "auto";
+  }
+
+  // Extra work done beyond today's budget, tracked separately so rebuilding
+  // the plan (focus switch, budget change) never disturbs it.
+  function getExtras(dateStr){ return state.dailyExtras[dateStr] || []; }
+
+  function addExtra(taskId){
+    var today = todayStr();
+    if(!state.dailyExtras[today]) state.dailyExtras[today] = [];
+    if(state.dailyExtras[today].indexOf(taskId) === -1) state.dailyExtras[today].push(taskId);
+  }
+
+  function removeExtra(taskId){
+    var today = todayStr();
+    state.dailyExtras[today] = getExtras(today).filter(function(id){ return id!==taskId; });
   }
 
   // Due reviews always lead the plan, whatever the focus — spaced repetition
@@ -566,7 +600,7 @@
       var t = findTask(id); return s + (t ? t.estHours : 0);
     }, 0);
     var budget = Math.max(getDailyBudget(today) - keptHours, 0);
-    var rest = buildPlanIds(budget, today, getFocus(today), keep);
+    var rest = buildPlanIds(budget, today, getFocus(today), keep.concat(getExtras(today)));
     state.dailyPlans[today] = keep.concat(rest);
     saveState();
   }
@@ -574,9 +608,33 @@
   function ensureTodayPlan(){
     var today = todayStr();
     if(!state.dailyPlans[today]){
-      state.dailyPlans[today] = buildPlanIds(getDailyBudget(today), today, getFocus(today), []);
+      state.dailyPlans[today] = buildPlanIds(getDailyBudget(today), today, getFocus(today), getExtras(today));
       saveState();
     }
+  }
+
+  // Next things worth doing, once today's plan is cleared. Focus-matching
+  // tasks lead, then everything else, so this list is never empty just
+  // because one category ran out.
+  function getExtraCandidates(limit){
+    var today = todayStr();
+    var taken = (state.dailyPlans[today]||[]).concat(getExtras(today));
+    var avail = pendingTasks().filter(function(t){
+      return isAvailable(t, today) && taken.indexOf(t.id) === -1;
+    });
+    var focus = getFocus(today);
+    var byOrder = function(a,b){ return a.order - b.order; };
+
+    var reviews = avail.filter(function(t){ return t.type==="review"; }).sort(function(a,b){
+      var ad = a.availableDate||"", bd = b.availableDate||"";
+      if(ad!==bd) return ad<bd ? -1 : 1;
+      return a.order - b.order;
+    });
+    var normal  = avail.filter(function(t){ return t.type!=="review"; });
+    var matched = normal.filter(function(t){ return matchesFocus(t, focus); }).sort(byOrder);
+    var others  = normal.filter(function(t){ return !matchesFocus(t, focus); }).sort(byOrder);
+
+    return reviews.concat(matched, others).slice(0, limit);
   }
 
   function markDone(taskId){
@@ -698,13 +756,17 @@
     tags += '<span class="tag est">'+t.estHours+'h</span>';
     if(t.priority && t.priority!=="mid") tags += '<span class="tag pr-'+t.priority+'">'+(t.priority==="high"?"优先高":"优先低")+'</span>';
     if(t.type==="review") tags += '<span class="tag review-total">复习 #'+t.reviewStage+'</span>';
+    if(opts.isExtra) tags += '<span class="tag extra">加练</span>';
     if(locked) tags += '<span class="tag locked">解锁: '+t.availableDate+'</span>';
     if(isDone && t.completedDate) tags += '<span class="tag default">完成 '+t.completedDate+'</span>';
 
     var cbHtml = "";
     if(showCheckbox){
+      var action = isDone
+        ? (opts.undoAction || "undo")
+        : (opts.doneAction || "done");
       cbHtml = '<input type="checkbox" '+(isDone?"checked":"")+(locked?" disabled":"")+
-               ' data-action="'+(isDone?"undo":"done")+'" data-id="'+t.id+'">';
+               ' data-action="'+action+'" data-id="'+t.id+'">';
     }
     var actions = "";
     if(opts.showPoolActions){
@@ -738,32 +800,77 @@
     document.getElementById("focusNote").textContent = note;
   }
 
+  function planIsClear(){
+    var today = todayStr();
+    var tasks = (state.dailyPlans[today]||[]).map(findTask).filter(Boolean);
+    return tasks.length>0 && tasks.every(function(t){ return t.status==="done"; });
+  }
+
   function renderToday(){
     ensureTodayPlan();
     var today = todayStr();
-    var ids = state.dailyPlans[today] || [];
-    var tasks = ids.map(findTask).filter(Boolean);
+    var tasks = (state.dailyPlans[today]||[]).map(findTask).filter(Boolean);
+    var extras = getExtras(today).map(findTask).filter(Boolean);
 
     document.getElementById("budgetInput").value = getDailyBudget(today);
 
     var container = document.getElementById("todayList");
+    var html = "";
     if(tasks.length===0){
       var focus = getFocus(today);
-      var msg = focus==="auto"
+      html = '<div class="empty-hint">'+(focus==="auto"
         ? "今天没有安排任务。请提高时间预算，或到任务池中查看。"
-        : "该分类下暂时没有可安排的任务（可能已全部完成）。换一个分类，或选「都行（自动排）」。";
-      container.innerHTML = '<div class="empty-hint">'+msg+'</div>';
+        : "该分类下暂时没有可安排的任务（可能已全部完成）。换一个分类，或选「都行（自动排）」。")+'</div>';
     } else {
-      container.innerHTML = tasks.map(function(t){ return taskRowHtml(t, {showCheckbox:true}); }).join("");
+      html = tasks.map(function(t){ return taskRowHtml(t, {showCheckbox:true}); }).join("");
     }
+    html += extras.map(function(t){
+      return taskRowHtml(t, {showCheckbox:true, isExtra:true, undoAction:"extra-undo", doneAction:"extra-done"});
+    }).join("");
+    container.innerHTML = html;
 
-    var doneSum = tasks.filter(function(t){ return t.status==="done"; })
-                       .reduce(function(s,t){ return s+t.estHours; },0);
+    var doneSum  = tasks.filter(function(t){ return t.status==="done"; })
+                        .reduce(function(s,t){ return s+t.estHours; },0);
     var totalSum = tasks.reduce(function(s,t){ return s+t.estHours; },0);
+    var extraSum = extras.filter(function(t){ return t.status==="done"; })
+                         .reduce(function(s,t){ return s+t.estHours; },0);
+
     var pct = totalSum>0 ? Math.min(100, doneSum/totalSum*100) : 0;
     document.getElementById("todayProgressBar").style.width = pct+"%";
-    document.getElementById("todaySummary").textContent =
-      "完成 "+doneSum.toFixed(1)+"h / 计划 "+totalSum.toFixed(1)+"h（预算 "+getDailyBudget(today)+"h）";
+
+    var summary = "完成 "+doneSum.toFixed(1)+"h / 计划 "+totalSum.toFixed(1)+
+                  "h（预算 "+getDailyBudget(today)+"h）";
+    if(extraSum>0) summary += " · 加练 +"+extraSum.toFixed(1)+"h";
+    document.getElementById("todaySummary").textContent = summary;
+
+    document.getElementById("todayClear").innerHTML = planIsClear()
+      ? '<div class="today-clear">🎉 今天的计划完成了！还有余力就从下面的加练区继续。</div>'
+      : "";
+  }
+
+  // null = follow the auto rule (open once today's plan is cleared);
+  // true/false = the user opened or closed it by hand.
+  var extraPanelOpen = null;
+  function isExtraPanelOpen(){
+    return extraPanelOpen === null ? planIsClear() : extraPanelOpen;
+  }
+
+  function renderExtras(){
+    var open = isExtraPanelOpen();
+    var html = '<div class="extra-head">'+
+      '<button class="extra-toggle" id="extraToggle" aria-expanded="'+open+'">'+
+        (open ? "▾" : "▸")+' 加练区</button>'+
+      '<span class="extra-hint">计划做完还有余力，从这里继续勾选；勾错了取消就回到这里</span>'+
+    '</div>';
+    if(open){
+      var cands = getExtraCandidates(8);
+      html += cands.length===0
+        ? '<div class="empty-hint">任务池里已经没有可做的任务了 🎉</div>'
+        : cands.map(function(t){
+            return taskRowHtml(t, {showCheckbox:true, doneAction:"extra-done"});
+          }).join("");
+    }
+    document.getElementById("extraSection").innerHTML = html;
   }
 
   function renderStats(){
@@ -838,6 +945,7 @@
     renderWarning();
     renderFocus();
     renderToday();
+    renderExtras();
     renderStats();
     renderCatProgress();
     renderHeatmap();
@@ -858,6 +966,11 @@
       toast("已按「"+(f?f.label:"")+"」重新安排今日任务");
       return;
     }
+    if(t.id === "extraToggle"){
+      extraPanelOpen = !isExtraPanelOpen();
+      renderExtras();
+      return;
+    }
     if(t.dataset.action){
       var id = t.dataset.id;
       if(t.dataset.action==="up") moveTask(id,-1);
@@ -874,13 +987,24 @@
 
   document.addEventListener("change", function(e){
     var t = e.target;
-    if(t.matches('input[type=checkbox][data-action="done"]')){
-      markDone(t.dataset.id);
-      renderAll();
-    } else if(t.matches('input[type=checkbox][data-action="undo"]')){
-      undoDone(t.dataset.id);
-      renderAll();
+    if(!t.matches('input[type=checkbox][data-action]')) return;
+    var id = t.dataset.id;
+    switch(t.dataset.action){
+      case "done":
+        markDone(id); break;
+      case "undo":
+        undoDone(id); break;
+      case "extra-done":
+        // Checked straight from the 加练区 — record it as extra work for today.
+        addExtra(id); markDone(id); break;
+      case "extra-undo":
+        // Unchecked by mistake: undo the completion and send it back to the 加练区.
+        undoDone(id); removeExtra(id); break;
+      default:
+        return;
     }
+    saveState();
+    renderAll();
   });
 
   document.getElementById("applyBudgetBtn").addEventListener("click", function(){
