@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>簿记1级学习规划器（TAC）</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --surface:#ffffff; --surface-2:#eef1f8; --border:#dde2ee;
+    --text:#1c2333; --text-dim:#5b6478; --text-faint:#93a0b7;
+    --accent:#3a5cf0; --accent-dim:#e7ebfd;
+    --green:#1f9d55; --green-bg:#e5f8ec;
+    --yellow:#b8860b; --yellow-bg:#fdf3d8;
+    --red:#d64545; --red-bg:#fde8e8;
+    --purple:#8256d0; --purple-bg:#f0e9fb;
+    --teal:#0d9488; --teal-bg:#e2f6f4;
+    --shadow: 0 1px 3px rgba(20,30,60,0.08), 0 1px 2px rgba(20,30,60,0.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12151f; --surface:#1a1e2b; --surface-2:#20263a; --border:#2d3448;
+      --text:#e7ebf5; --text-dim:#a2acc4; --text-faint:#6b7592;
+      --accent:#7b93ff; --accent-dim:#232a4a;
+      --green:#4ade80; --green-bg:#153323;
+      --yellow:#facc15; --yellow-bg:#3a2f0e;
+      --red:#ff6b6b; --red-bg:#3a1717;
+      --purple:#b79bf0; --purple-bg:#2a2140;
+      --teal:#5eead4; --teal-bg:#0f2f2b;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12151f; --surface:#1a1e2b; --surface-2:#20263a; --border:#2d3448;
+    --text:#e7ebf5; --text-dim:#a2acc4; --text-faint:#6b7592;
+    --accent:#7b93ff; --accent-dim:#232a4a;
+    --green:#4ade80; --green-bg:#153323;
+    --yellow:#facc15; --yellow-bg:#3a2f0e;
+    --red:#ff6b6b; --red-bg:#3a1717;
+    --purple:#b79bf0; --purple-bg:#2a2140;
+    --teal:#5eead4; --teal-bg:#0f2f2b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans","Noto Sans SC","Noto Sans JP",Roboto,sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:20px 16px 80px;}
+  header.top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  header.top h1{font-size:1.3rem; margin:0; display:flex; align-items:center; gap:8px;}
+  header.top h1 .sub{font-size:0.75rem; font-weight:400; color:var(--text-dim);}
+  .countdown{font-size:0.85rem; color:var(--text-dim); display:flex; align-items:center; gap:10px;}
+  .countdown b{color:var(--accent); font-size:1.05rem;}
+  .icon-btn{
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:6px 10px; cursor:pointer; font-size:0.85rem;
+  }
+  .icon-btn:hover{border-color:var(--accent);}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; margin-bottom:16px; box-shadow:var(--shadow);
+  }
+  .card h2{font-size:1rem; margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .card h2 .actions{display:flex; gap:6px; font-weight:400;}
+  .warn-banner{
+    border-radius:14px; padding:14px 18px; margin-bottom:16px; font-size:0.9rem;
+    border:1px solid var(--border);
+  }
+  .warn-banner.ok{background:var(--green-bg); color:var(--green); border-color:var(--green);}
+  .warn-banner.caution{background:var(--yellow-bg); color:var(--yellow); border-color:var(--yellow);}
+  .warn-banner.danger{background:var(--red-bg); color:var(--red); border-color:var(--red);}
+  .warn-banner .metrics{display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:6px; font-size:0.82rem; color:var(--text-dim);}
+  .warn-banner b{font-size:1rem;}
+  .warn-banner .headline{font-weight:700; font-size:0.95rem;}
+  .grid2{display:grid; grid-template-columns:1fr 300px; gap:16px;}
+  @media (max-width:800px){ .grid2{grid-template-columns:1fr;} }
+  .budget-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:0.85rem; color:var(--text-dim);}
+  .budget-row input[type=number]{
+    width:64px; padding:5px 6px; border-radius:6px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); font-size:0.85rem;
+  }
+  .progress-bar{height:8px; border-radius:5px; background:var(--surface-2); overflow:hidden; margin:4px 0 2px;}
+  .progress-bar>div{height:100%; background:var(--accent); border-radius:5px; transition:width .3s;}
+  .task-row{
+    display:flex; align-items:flex-start; gap:10px; padding:10px 4px; border-bottom:1px solid var(--border);
+  }
+  .task-row:last-child{border-bottom:none;}
+  .task-row.done{opacity:0.55;}
+  .task-row.done .task-title{text-decoration:line-through;}
+  .task-row input[type=checkbox]{margin-top:3px; width:18px; height:18px; accent-color:var(--accent); cursor:pointer; flex-shrink:0;}
+  .task-main{flex:1; min-width:0;}
+  .task-title{font-size:0.92rem; word-break:break-word;}
+  .task-meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; align-items:center;}
+  .tag{
+    font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:600; white-space:nowrap;
+  }
+  .tag.cb{background:var(--accent-dim); color:var(--accent);}
+  .tag.ca{background:var(--teal-bg); color:var(--teal);}
+  .tag.past{background:var(--purple-bg); color:var(--purple);}
+  .tag.mock{background:var(--red-bg); color:var(--red);}
+  .tag.review-total{background:var(--yellow-bg); color:var(--yellow);}
+  .tag.default{background:var(--surface-2); color:var(--text-dim);}
+  .tag.est{background:var(--surface-2); color:var(--text-dim);}
+  .tag.pr-high{background:var(--red-bg); color:var(--red);}
+  .tag.pr-mid{background:var(--surface-2); color:var(--text-dim);}
+  .tag.pr-low{background:var(--surface-2); color:var(--text-faint);}
+  .tag.locked{background:var(--surface-2); color:var(--text-faint);}
+  .task-actions{display:flex; gap:6px; flex-shrink:0;}
+  .task-actions button{
+    background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:6px;
+    padding:3px 7px; font-size:0.75rem; cursor:pointer;
+  }
+  .task-actions button:hover{border-color:var(--accent); color:var(--accent);}
+  .empty-hint{color:var(--text-faint); font-size:0.85rem; padding:14px 4px; text-align:center;}
+  .tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .tabs button{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:99px; padding:4px 12px; font-size:0.78rem; cursor:pointer;
+  }
+  .tabs button.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .stat-box{display:flex; justify-content:space-between; font-size:0.85rem; padding:6px 0; border-bottom:1px dashed var(--border);}
+  .stat-box:last-child{border-bottom:none;}
+  .stat-box b{color:var(--accent);}
+  .heatmap{display:grid; grid-template-columns:repeat(14,1fr); gap:3px; margin-top:8px;}
+  .heat-cell{aspect-ratio:1; border-radius:3px; background:var(--surface-2);}
+  .heat-cell.l1{background:var(--accent-dim);}
+  .heat-cell.l2{background:var(--accent); opacity:0.55;}
+  .heat-cell.l3{background:var(--accent);}
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 14px;
+    font-size:0.85rem; cursor:pointer; font-weight:600;
+  }
+  .btn.secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
+  .btn.danger{background:var(--red); color:#fff;}
+  .btn:hover{filter:brightness(1.08);}
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(10,14,25,0.5); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:16px;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    background:var(--surface); border-radius:14px; padding:20px; width:100%; max-width:420px;
+    box-shadow:var(--shadow); border:1px solid var(--border); max-height:90vh; overflow-y:auto;
+  }
+  .modal h3{margin-top:0;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:0.78rem; color:var(--text-dim); margin-bottom:4px;}
+  .field input, .field select{
+    width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); font-size:0.88rem;
+  }
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--bg); padding:10px 18px; border-radius:99px;
+    font-size:0.85rem; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s, bottom .25s;
+    z-index:100; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+  }
+  .toast.show{opacity:1; bottom:34px;}
+  .footnote{font-size:0.72rem; color:var(--text-faint); text-align:center; margin-top:20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>📘 簿记1级学习规划器 <span class="sub">TAC教材 · 论点任务池</span></h1>
+    <div class="countdown" id="countdownBox"></div>
+  </header>
+
+  <div id="warnBanner" class="warn-banner ok"></div>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h2>今日任务 <span class="actions">
+          <button class="icon-btn" id="regenBtn">🔄 重新生成</button>
+          <button class="icon-btn" id="settingsBtn">⚙️ 设置</button>
+        </span></h2>
+        <div class="budget-row">
+          今日学习时间预算：
+          <input type="number" id="budgetInput" min="0" step="0.5">
+          小时
+          <button class="btn secondary" id="applyBudgetBtn" style="padding:5px 10px;">应用</button>
+        </div>
+        <div class="progress-bar"><div id="todayProgressBar" style="width:0%"></div></div>
+        <div style="font-size:0.78rem; color:var(--text-dim);" id="todaySummary"></div>
+        <div id="todayList" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>进度总览</h2>
+        <div class="stat-box"><span>累计完成时间</span><b id="statDoneHours">0h</b></div>
+        <div class="stat-box"><span>剩余任务时间</span><b id="statRemainHours">0h</b></div>
+        <div class="stat-box"><span>总体进度</span><b id="statProgressPct">0%</b></div>
+        <div class="progress-bar"><div id="overallProgressBar" style="width:0%; background:var(--green);"></div></div>
+      </div>
+      <div class="card">
+        <h2>打卡日历 <span class="actions" style="font-size:0.75rem; color:var(--text-dim); font-weight:400;" id="streakLabel"></span></h2>
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>任务池（全部论点）<span class="actions">
+      <button class="btn" id="addTaskBtn" style="padding:6px 12px;">＋ 添加任务</button>
+    </span></h2>
+    <div class="tabs" id="categoryTabs"></div>
+    <div id="poolList"></div>
+  </div>
+
+  <div class="footnote">数据保存在本机浏览器（localStorage）中，不会同步到其他设备或浏览器。</div>
+</div>
+
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h3>⚙️ 设置</h3>
+    <div class="field">
+      <label>考试日期（请核实，可修改）</label>
+      <input type="date" id="s_examDate">
+    </div>
+    <div class="field">
+      <label>每日默认学习时间（小时）</label>
+      <input type="number" id="s_dailyHours" min="0.5" step="0.5">
+    </div>
+    <div class="field">
+      <label>警告阈值：日均所需学习时间超过此值时红字警告（小时）</label>
+      <input type="number" id="s_warnThreshold" min="1" step="0.5">
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="resetAllBtn" style="margin-right:auto;">清除全部数据</button>
+      <button class="btn secondary" id="settingsCancel">取消</button>
+      <button class="btn" id="settingsSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal">
+    <h3 id="taskModalTitle">添加任务</h3>
+    <input type="hidden" id="t_id">
+    <div class="field">
+      <label>标题</label>
+      <input type="text" id="t_title" placeholder="例：連結会計①資本連結 トレーニング">
+    </div>
+    <div class="field">
+      <label>分类</label>
+      <select id="t_category">
+        <option value="商業簿記・会計学">商業簿記・会計学</option>
+        <option value="工業簿記・原価計算">工業簿記・原価計算</option>
+        <option value="過去問">過去問</option>
+        <option value="模試">模試</option>
+        <option value="総復習">総復習</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>预计用时（小时）</label>
+      <input type="number" id="t_est" min="0.5" step="0.5" value="1.5">
+    </div>
+    <div class="field">
+      <label>优先级（仅作标签展示，实际顺序用▲▼调整）</label>
+      <select id="t_priority">
+        <option value="high">高</option>
+        <option value="mid" selected>中</option>
+        <option value="low">低</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="taskCancel">取消</button>
+      <button class="btn" id="taskSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var STORAGE_KEY = "boki1_planner_state_v1";
+
+  function uid(){ return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function fmtDate(d){
+    var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+    return y+"-"+m+"-"+dd;
+  }
+  function todayStr(){ return fmtDate(new Date()); }
+  function addDays(dateStr, n){
+    var d = new Date(dateStr+"T00:00:00");
+    d.setDate(d.getDate()+n);
+    return fmtDate(d);
+  }
+  function diffDays(fromStr, toStr){
+    var a = new Date(fromStr+"T00:00:00"), b = new Date(toStr+"T00:00:00");
+    return Math.round((b-a)/86400000);
+  }
+
+  function catClass(cat){
+    if(cat==="商業簿記・会計学") return "cb";
+    if(cat==="工業簿記・原価計算") return "ca";
+    if(cat==="過去問") return "past";
+    if(cat==="模試") return "mock";
+    if(cat==="復習") return "review-total";
+    return "default";
+  }
+
+  function makeTask(title, category, est, extra){
+    var t = {
+      id: uid(), title: title, category: category, estHours: est, order: 0,
+      priority: "mid", status: "pending", type: "normal", reviewStage: 0,
+      parentId: null, availableDate: null, completedDate: null
+    };
+    return Object.assign(t, extra||{});
+  }
+
+  function buildDefaultPool(){
+    var CB = "商業簿記・会計学", CA = "工業簿記・原価計算";
+    var cbTopics = [
+      "財務諸表の基礎・注記事項","現金預金・銀行勘定調整表","金銭債権・貸倒引当金",
+      "有価証券（売買目的・満期保有・子会社株式等）","デリバティブ・ヘッジ会計","棚卸資産の評価（低価法等）",
+      "特殊商品売買（割賦・委託・試用）","有形固定資産（取得原価・減価償却）","減損会計",
+      "リース会計（ファイナンス・オペレーティング）","無形固定資産・繰延資産","引当金・退職給付会計",
+      "社債（発行・買入償還・満期償還）","純資産会計・株主資本等変動計算書","新株予約権・ストック・オプション",
+      "税効果会計","外貨換算会計","企業結合・合併・株式交換",
+      "連結会計①資本連結（支配獲得）","連結会計②成果連結（内部取引消去）","連結会計③持分法・在外子会社",
+      "キャッシュ・フロー計算書","本支店会計","事業分離・分配可能額",
+      "会計学理論総まとめ（概念フレームワーク等）"
+    ];
+    var caTopics = [
+      "費目別計算・個別原価計算","部門別個別原価計算","総合原価計算（単純・工程別）",
+      "組別・等級別総合原価計算","標準原価計算①差異分析基礎","標準原価計算②応用（配合差異等）",
+      "直接原価計算・CVP分析","予算編成・予算実績差異分析","本社工場会計",
+      "原価計算基準・理論","意思決定会計①業務的意思決定","意思決定会計②設備投資の意思決定",
+      "ライフサイクルコスティング・ABC"
+    ];
+    var pool = [];
+    var order = 1;
+    function addPair(topic, cat){
+      pool.push(makeTask(topic+"【テキスト】理解", cat, 1.5, {order: order++}));
+      pool.push(makeTask(topic+"【トレーニング】演習", cat, 1.5, {order: order++}));
+    }
+    cbTopics.forEach(function(t){ addPair(t, CB); });
+    caTopics.forEach(function(t){ addPair(t, CA); });
+    for(var i=1;i<=8;i++) pool.push(makeTask("過去問演習 第"+i+"回", "過去問", 2, {order: order++}));
+    for(var j=1;j<=4;j++) pool.push(makeTask("模擬試験 第"+j+"回", "模試", 2, {order: order++}));
+    for(var k=1;k<=6;k++) pool.push(makeTask("苦手論点 総復習 "+k, "総復習", 1.5, {order: order++}));
+    return pool;
+  }
+
+  function defaultState(){
+    return {
+      settings: { examDate: "2026-11-15", dailyHoursDefault: 5, warnThreshold: 6, dailyOverrides: {} },
+      pool: buildDefaultPool(),
+      dailyPlans: {}
+    };
+  }
+
+  var state = null;
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        state = JSON.parse(raw);
+        if(!state.settings) state.settings = defaultState().settings;
+        if(!state.settings.dailyOverrides) state.settings.dailyOverrides = {};
+        if(!state.pool) state.pool = [];
+        if(!state.dailyPlans) state.dailyPlans = {};
+      } else {
+        state = defaultState();
+        saveState();
+      }
+    }catch(e){
+      state = defaultState();
+    }
+  }
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  var toastTimer = null;
+  function toast(msg){
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 2600);
+  }
+
+  // ---------- core scheduling logic ----------
+  function pendingTasks(){ return state.pool.filter(function(t){ return t.status==="pending"; }); }
+
+  function isAvailable(t, asOf){ return !t.availableDate || t.availableDate <= asOf; }
+
+  function sortedQueue(asOf){
+    var pending = pendingTasks();
+    var avail = pending.filter(function(t){ return isAvailable(t, asOf); });
+    avail.sort(function(a,b){
+      var ar = a.type==="review" ? 0 : 1;
+      var br = b.type==="review" ? 0 : 1;
+      if(ar!==br) return ar-br;
+      if(ar===0){
+        var ad = a.availableDate||"", bd = b.availableDate||"";
+        if(ad!==bd) return ad<bd ? -1 : 1;
+      }
+      return a.order - b.order;
+    });
+    return avail;
+  }
+
+  function buildPlanIds(budget, asOf){
+    var q = sortedQueue(asOf);
+    var ids = [];
+    var sum = 0;
+    for(var i=0;i<q.length;i++){
+      var t = q[i];
+      if(ids.length===0 || sum + t.estHours <= budget + 0.001){
+        ids.push(t.id);
+        sum += t.estHours;
+        if(sum >= budget) break;
+      } else {
+        break;
+      }
+    }
+    return ids;
+  }
+
+  function getDailyBudget(dateStr){
+    if(state.settings.dailyOverrides.hasOwnProperty(dateStr)) return state.settings.dailyOverrides[dateStr];
+    return state.settings.dailyHoursDefault;
+  }
+
+  function ensureTodayPlan(force){
+    var today = todayStr();
+    if(force || !state.dailyPlans[today]){
+      state.dailyPlans[today] = buildPlanIds(getDailyBudget(today), today);
+      saveState();
+    }
+  }
+
+  function markDone(taskId){
+    var t = state.pool.find(function(x){ return x.id===taskId; });
+    if(!t) return;
+    t.status = "done";
+    t.completedDate = todayStr();
+    if(t.type === "normal"){
+      var stages = [3,7,21];
+      stages.forEach(function(days, idx){
+        state.pool.push(makeTask(
+          "【复习+" + days + "天】" + t.title.replace(/【テキスト】理解|【トレーニング】演習/,""),
+          "復習", 0.5,
+          {
+            order: t.order, type: "review", reviewStage: idx+1,
+            parentId: t.id, availableDate: addDays(todayStr(), days)
+          }
+        ));
+      });
+      toast("✅ 完成！已自动生成复习任务：+3天 / +7天 / +21天");
+    } else {
+      toast("✅ 复习完成！辛苦了");
+    }
+    saveState();
+  }
+
+  function undoDone(taskId){
+    var t = state.pool.find(function(x){ return x.id===taskId; });
+    if(!t) return;
+    t.status = "pending";
+    t.completedDate = null;
+    saveState();
+  }
+
+  function deleteTask(taskId){
+    if(!confirm("确定要删除这个任务吗？")) return;
+    state.pool = state.pool.filter(function(t){ return t.id!==taskId; });
+    Object.keys(state.dailyPlans).forEach(function(d){
+      state.dailyPlans[d] = state.dailyPlans[d].filter(function(id){ return id!==taskId; });
+    });
+    saveState();
+    renderAll();
+  }
+
+  function moveTask(taskId, dir){
+    var pend = pendingTasks().slice().sort(function(a,b){ return a.order-b.order; });
+    var idx = pend.findIndex(function(t){ return t.id===taskId; });
+    var swapIdx = idx + dir;
+    if(idx<0 || swapIdx<0 || swapIdx>=pend.length) return;
+    var a = pend[idx], b = pend[swapIdx];
+    var tmp = a.order; a.order = b.order; b.order = tmp;
+    saveState();
+    renderAll();
+  }
+
+  // ---------- burndown ----------
+  function computeBurndown(){
+    var remainH = pendingTasks().reduce(function(s,t){ return s+t.estHours; }, 0);
+    var today = todayStr();
+    var exam = state.settings.examDate;
+    var remainDays = diffDays(today, exam);
+    return { remainH: remainH, remainDays: remainDays, exam: exam, today: today };
+  }
+
+  // ---------- rendering ----------
+  var activeCat = "全部";
+
+  function renderCountdown(){
+    var b = computeBurndown();
+    var box = document.getElementById("countdownBox");
+    if(b.remainDays >= 0){
+      box.innerHTML = "距离考试日 " + b.exam + " 还有 <b>" + b.remainDays + "</b> 天";
+    } else {
+      box.innerHTML = "<span style='color:var(--red)'>已超过设定的考试日期（" + b.exam + "）</span>";
+    }
+  }
+
+  function renderWarning(){
+    var b = computeBurndown();
+    var el = document.getElementById("warnBanner");
+    var days = Math.max(b.remainDays, 0);
+    var needed = days > 0 ? b.remainH / days : (b.remainH>0 ? Infinity : 0);
+    var threshold = state.settings.warnThreshold;
+    var cls = "ok", headline = "✅ 按当前进度可以按时完成";
+    if(b.remainDays < 0){
+      cls = "danger"; headline = "⚠️ 已超过考试日期，请到设置中检查考试日期";
+    } else if(needed > threshold){
+      cls = "danger"; headline = "⚠️ 按当前速度会做不完，需要削减范围或增加每日学习时长！";
+    } else if(needed > threshold*0.7){
+      cls = "caution"; headline = "⚠ 进度偏紧张，请注意保持节奏";
+    }
+    el.className = "warn-banner " + cls;
+    var neededTxt = isFinite(needed) ? needed.toFixed(2) : "∞";
+    el.innerHTML =
+      '<div class="headline">'+headline+'</div>'+
+      '<div class="metrics">'+
+        '<span>剩余任务时间　<b>'+b.remainH.toFixed(1)+'h</b></span>'+
+        '<span>÷ 剩余天数　<b>'+Math.max(b.remainDays,0)+'天</b></span>'+
+        '<span>= 需要的日均学习时间　<b style="color:inherit">'+neededTxt+'h</b></span>'+
+        '<span>警告阈值　'+threshold+'h</span>'+
+      '</div>';
+  }
+
+  function taskRowHtml(t, opts){
+    opts = opts || {};
+    var showCheckbox = opts.showCheckbox !== false;
+    var isDone = t.status === "done";
+    var locked = t.type==="review" && t.availableDate && t.availableDate > todayStr();
+    var tags = '<span class="tag '+catClass(t.category)+'">'+t.category+'</span>';
+    tags += '<span class="tag est">'+t.estHours+'h</span>';
+    if(t.priority && t.priority!=="mid") tags += '<span class="tag pr-'+t.priority+'">'+(t.priority==="high"?"优先高":"优先低")+'</span>';
+    if(t.type==="review") tags += '<span class="tag review-total">复习 #'+t.reviewStage+'</span>';
+    if(locked) tags += '<span class="tag locked">解锁: '+t.availableDate+'</span>';
+    if(isDone && t.completedDate) tags += '<span class="tag default">完成 '+t.completedDate+'</span>';
+
+    var cbHtml = "";
+    if(showCheckbox){
+      cbHtml = '<input type="checkbox" '+(isDone?"checked":"")+(locked?" disabled":"")+' data-action="'+(isDone?"undo":"done")+'" data-id="'+t.id+'">';
+    }
+    var actions = "";
+    if(opts.showPoolActions){
+      actions = '<div class="task-actions">'+
+        '<button data-action="up" data-id="'+t.id+'" title="上移">▲</button>'+
+        '<button data-action="down" data-id="'+t.id+'" title="下移">▼</button>'+
+        '<button data-action="edit" data-id="'+t.id+'" title="编辑">编辑</button>'+
+        '<button data-action="delete" data-id="'+t.id+'" title="删除">删除</button>'+
+        '</div>';
+    }
+    return '<div class="task-row'+(isDone?" done":"")+'">'+
+      cbHtml+
+      '<div class="task-main"><div class="task-title">'+escapeHtml(t.title)+'</div><div class="task-meta">'+tags+'</div></div>'+
+      actions+
+      '</div>';
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function renderToday(){
+    ensureTodayPlan(false);
+    var today = todayStr();
+    var ids = state.dailyPlans[today] || [];
+    var tasks = ids.map(function(id){ return state.pool.find(function(t){ return t.id===id; }); }).filter(Boolean);
+
+    document.getElementById("budgetInput").value = getDailyBudget(today);
+
+    var container = document.getElementById("todayList");
+    if(tasks.length===0){
+      container.innerHTML = '<div class="empty-hint">今天没有安排任务。请提高时间预算，或到任务池中查看。</div>';
+    } else {
+      container.innerHTML = tasks.map(function(t){ return taskRowHtml(t, {showCheckbox:true}); }).join("");
+    }
+
+    var doneSum = tasks.filter(function(t){ return t.status==="done"; }).reduce(function(s,t){ return s+t.estHours; },0);
+    var totalSum = tasks.reduce(function(s,t){ return s+t.estHours; },0);
+    var budget = getDailyBudget(today);
+    var pct = totalSum>0 ? Math.min(100, doneSum/totalSum*100) : 0;
+    document.getElementById("todayProgressBar").style.width = pct+"%";
+    document.getElementById("todaySummary").textContent =
+      "完成 "+doneSum.toFixed(1)+"h / 计划 "+totalSum.toFixed(1)+"h（预算 "+budget+"h）";
+  }
+
+  function renderStats(){
+    var doneHours = state.pool.filter(function(t){ return t.status==="done"; }).reduce(function(s,t){ return s+t.estHours; },0);
+    var remainHours = pendingTasks().reduce(function(s,t){ return s+t.estHours; },0);
+    var total = doneHours + remainHours;
+    var pct = total>0 ? Math.round(doneHours/total*100) : 0;
+    document.getElementById("statDoneHours").textContent = doneHours.toFixed(1)+"h";
+    document.getElementById("statRemainHours").textContent = remainHours.toFixed(1)+"h";
+    document.getElementById("statProgressPct").textContent = pct+"%";
+    document.getElementById("overallProgressBar").style.width = pct+"%";
+  }
+
+  function renderHeatmap(){
+    var counts = {};
+    state.pool.forEach(function(t){
+      if(t.status==="done" && t.completedDate){
+        counts[t.completedDate] = (counts[t.completedDate]||0)+1;
+      }
+    });
+    var N = 70;
+    var cellsHtml = "";
+    var days = [];
+    for(var i=N-1;i>=0;i--){
+      days.push(addDays(todayStr(), -i));
+    }
+    days.forEach(function(d){
+      var c = counts[d]||0;
+      var lvl = c===0?"":(c===1?"l1":(c===2?"l2":"l3"));
+      cellsHtml += '<div class="heat-cell '+lvl+'" title="'+d+"："+c+"项完成"+'"></div>';
+    });
+    document.getElementById("heatmap").innerHTML = cellsHtml;
+
+    // streak calc
+    var streak = 0;
+    var cursor = todayStr();
+    if(!counts[cursor]) { cursor = addDays(cursor,-1); }
+    while(counts[cursor]){
+      streak++;
+      cursor = addDays(cursor,-1);
+    }
+    var totalCheckinDays = Object.keys(counts).length;
+    document.getElementById("streakLabel").textContent = "连续 "+streak+" 天 / 累计 "+totalCheckinDays+" 天";
+  }
+
+  function renderCategoryTabs(){
+    var cats = ["全部","商業簿記・会計学","工業簿記・原価計算","過去問","模試","総復習","復習"];
+    var tabsEl = document.getElementById("categoryTabs");
+    tabsEl.innerHTML = cats.map(function(c){
+      return '<button class="'+(activeCat===c?"active":"")+'" data-cat="'+c+'">'+c+'</button>';
+    }).join("");
+  }
+
+  function renderPool(){
+    var pend = pendingTasks().slice().sort(function(a,b){ return a.order-b.order; });
+    if(activeCat!=="全部") pend = pend.filter(function(t){ return t.category===activeCat; });
+    var container = document.getElementById("poolList");
+    if(pend.length===0){
+      container.innerHTML = '<div class="empty-hint">该分类下暂无未完成的任务。</div>';
+    } else {
+      container.innerHTML = pend.map(function(t){ return taskRowHtml(t, {showCheckbox:false, showPoolActions:true}); }).join("");
+    }
+  }
+
+  function renderAll(){
+    renderCountdown();
+    renderWarning();
+    renderToday();
+    renderStats();
+    renderHeatmap();
+    renderCategoryTabs();
+    renderPool();
+  }
+
+  // ---------- event wiring ----------
+  document.addEventListener("click", function(e){
+    var t = e.target;
+    if(t.dataset && t.dataset.action){
+      var id = t.dataset.id;
+      if(t.dataset.action==="up") moveTask(id,-1);
+      else if(t.dataset.action==="down") moveTask(id,1);
+      else if(t.dataset.action==="delete") deleteTask(id);
+      else if(t.dataset.action==="edit") openTaskModal(id);
+    }
+    if(t.dataset && t.dataset.cat){
+      activeCat = t.dataset.cat;
+      renderCategoryTabs();
+      renderPool();
+    }
+  });
+
+  document.addEventListener("change", function(e){
+    var t = e.target;
+    if(t.matches('input[type=checkbox][data-action="done"]')){
+      markDone(t.dataset.id);
+      renderAll();
+    } else if(t.matches('input[type=checkbox][data-action="undo"]')){
+      undoDone(t.dataset.id);
+      renderAll();
+    }
+  });
+
+  document.getElementById("regenBtn").addEventListener("click", function(){
+    ensureTodayPlan(true);
+    renderAll();
+    toast("已重新生成今日计划");
+  });
+
+  document.getElementById("applyBudgetBtn").addEventListener("click", function(){
+    var v = parseFloat(document.getElementById("budgetInput").value);
+    if(isNaN(v) || v<0) v = state.settings.dailyHoursDefault;
+    state.settings.dailyOverrides[todayStr()] = v;
+    ensureTodayPlan(true);
+    saveState();
+    renderAll();
+  });
+
+  // settings modal
+  var settingsModal = document.getElementById("settingsModal");
+  document.getElementById("settingsBtn").addEventListener("click", function(){
+    document.getElementById("s_examDate").value = state.settings.examDate;
+    document.getElementById("s_dailyHours").value = state.settings.dailyHoursDefault;
+    document.getElementById("s_warnThreshold").value = state.settings.warnThreshold;
+    settingsModal.classList.add("open");
+  });
+  document.getElementById("settingsCancel").addEventListener("click", function(){ settingsModal.classList.remove("open"); });
+  document.getElementById("settingsSave").addEventListener("click", function(){
+    state.settings.examDate = document.getElementById("s_examDate").value || state.settings.examDate;
+    var dh = parseFloat(document.getElementById("s_dailyHours").value);
+    if(!isNaN(dh) && dh>0) state.settings.dailyHoursDefault = dh;
+    var wt = parseFloat(document.getElementById("s_warnThreshold").value);
+    if(!isNaN(wt) && wt>0) state.settings.warnThreshold = wt;
+    saveState();
+    settingsModal.classList.remove("open");
+    renderAll();
+    toast("设置已保存");
+  });
+  document.getElementById("resetAllBtn").addEventListener("click", function(){
+    if(confirm("确定要清除全部数据并恢复初始状态吗？此操作不可撤销。")){
+      state = defaultState();
+      saveState();
+      settingsModal.classList.remove("open");
+      renderAll();
+      toast("数据已重置");
+    }
+  });
+
+  // task modal
+  var taskModal = document.getElementById("taskModal");
+  function openTaskModal(editId){
+    document.getElementById("taskModalTitle").textContent = editId ? "编辑任务" : "添加任务";
+    document.getElementById("t_id").value = editId || "";
+    if(editId){
+      var t = state.pool.find(function(x){ return x.id===editId; });
+      document.getElementById("t_title").value = t.title;
+      document.getElementById("t_category").value = t.category;
+      document.getElementById("t_est").value = t.estHours;
+      document.getElementById("t_priority").value = t.priority;
+    } else {
+      document.getElementById("t_title").value = "";
+      document.getElementById("t_category").value = "商業簿記・会計学";
+      document.getElementById("t_est").value = 1.5;
+      document.getElementById("t_priority").value = "mid";
+    }
+    taskModal.classList.add("open");
+  }
+  document.getElementById("addTaskBtn").addEventListener("click", function(){ openTaskModal(null); });
+  document.getElementById("taskCancel").addEventListener("click", function(){ taskModal.classList.remove("open"); });
+  document.getElementById("taskSave").addEventListener("click", function(){
+    var id = document.getElementById("t_id").value;
+    var title = document.getElementById("t_title").value.trim();
+    if(!title){ alert("请输入标题"); return; }
+    var category = document.getElementById("t_category").value;
+    var est = parseFloat(document.getElementById("t_est").value) || 1.5;
+    var priority = document.getElementById("t_priority").value;
+    if(id){
+      var t = state.pool.find(function(x){ return x.id===id; });
+      t.title = title; t.category = category; t.estHours = est; t.priority = priority;
+    } else {
+      var maxOrder = state.pool.reduce(function(m,x){ return Math.max(m,x.order); }, 0);
+      state.pool.push(makeTask(title, category, est, {order: maxOrder+1, priority: priority}));
+    }
+    saveState();
+    taskModal.classList.remove("open");
+    renderAll();
+  });
+
+  [settingsModal, taskModal].forEach(function(m){
+    m.addEventListener("click", function(e){ if(e.target===m) m.classList.remove("open"); });
+  });
+
+  loadState();
+  ensureTodayPlan(false);
+  renderAll();
+})();
+</script>
+</body>
+</html>
