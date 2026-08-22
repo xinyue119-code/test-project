@@ -85,6 +85,25 @@
   .warn-banner .headline{font-family:var(--font-display); font-weight:700; font-size:0.98rem;}
   .grid2{display:grid; grid-template-columns:1fr 300px; gap:16px;}
   @media (max-width:800px){ .grid2{grid-template-columns:1fr;} }
+  .focus-row{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 12px; margin-bottom:10px; border-radius:10px;
+    background:var(--surface-2); border:1px solid var(--border);
+  }
+  .focus-label{font-size:0.8rem; color:var(--text-dim); font-weight:600; white-space:nowrap;}
+  .focus-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .focus-chips button{
+    background:var(--surface); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:99px; padding:5px 13px; font-size:0.8rem; cursor:pointer;
+    font-family:var(--font-body); transition:background .15s, color .15s, border-color .15s;
+  }
+  .focus-chips button:hover{border-color:var(--accent); color:var(--accent);}
+  .focus-chips button.active{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600;}
+  .focus-chips button:focus-visible, .tabs button:focus-visible, .btn:focus-visible,
+  .icon-btn:focus-visible, .task-actions button:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .focus-note{font-size:0.72rem; color:var(--text-faint); width:100%; margin-top:2px;}
   .budget-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:0.85rem; color:var(--text-dim);}
   .budget-row input[type=number]{
     width:64px; padding:5px 6px; border-radius:6px; border:1px solid var(--border);
@@ -110,14 +129,14 @@
   .tag.ca{background:var(--teal-bg); color:var(--teal);}
   .tag.past{background:var(--purple-bg); color:var(--purple);}
   .tag.mock{background:var(--danger-bg); color:var(--danger);}
-  .tag.review-total{background:var(--warn-bg); color:var(--warn);}
+  .tag.review-total{background:var(--warn-bg); color:var(--warn); font-family:var(--font-mono);}
   .tag.default{background:var(--surface-2); color:var(--text-dim); font-family:var(--font-mono);}
   .tag.est{background:var(--surface-2); color:var(--text-dim); font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+  .tag.book{background:transparent; color:var(--text-faint); border:1px solid var(--border); font-family:var(--font-mono); letter-spacing:0.02em;}
   .tag.pr-high{background:var(--danger-bg); color:var(--danger);}
   .tag.pr-mid{background:var(--surface-2); color:var(--text-dim);}
   .tag.pr-low{background:var(--surface-2); color:var(--text-faint);}
   .tag.locked{background:var(--surface-2); color:var(--text-faint); font-family:var(--font-mono);}
-  .tag.review-total{font-family:var(--font-mono);}
   .task-actions{display:flex; gap:6px; flex-shrink:0;}
   .task-actions button{
     background:none; border:1px solid var(--border); color:var(--text-dim); border-radius:6px;
@@ -170,6 +189,9 @@
     z-index:100; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;
   }
   .toast.show{opacity:1; bottom:34px;}
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
   .footnote{font-size:0.72rem; color:var(--text-faint); text-align:center; margin-top:20px;}
 </style>
 </head>
@@ -177,7 +199,7 @@
 <div class="wrap">
 
   <header class="top">
-    <h1>📘 簿记1级学习规划器 <span class="sub">TAC教材 · 论点任务池</span></h1>
+    <h1>📘 簿记1级学习规划器 <span class="sub">TAC 合格テキスト／合格トレーニング</span></h1>
     <div class="countdown" id="countdownBox"></div>
   </header>
 
@@ -187,9 +209,15 @@
     <div>
       <div class="card">
         <h2>今日任务 <span class="actions">
-          <button class="icon-btn" id="regenBtn">🔄 重新生成</button>
           <button class="icon-btn" id="settingsBtn">⚙️ 设置</button>
         </span></h2>
+
+        <div class="focus-row">
+          <span class="focus-label">今天想学</span>
+          <div class="focus-chips" id="focusChips"></div>
+          <div class="focus-note" id="focusNote"></div>
+        </div>
+
         <div class="budget-row">
           今日学习时间预算：
           <input type="number" id="budgetInput" min="0" step="0.5">
@@ -211,6 +239,10 @@
         <div class="progress-bar"><div id="overallProgressBar" style="width:0%; background:var(--ok);"></div></div>
       </div>
       <div class="card">
+        <h2>分类进度</h2>
+        <div id="catProgress"></div>
+      </div>
+      <div class="card">
         <h2>打卡日历 <span class="actions" style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono);" id="streakLabel"></span></h2>
         <div class="heatmap" id="heatmap"></div>
       </div>
@@ -225,7 +257,7 @@
     <div id="poolList"></div>
   </div>
 
-  <div class="footnote">数据保存在本机浏览器（localStorage）中，不会同步到其他设备或浏览器。</div>
+  <div class="footnote">数据保存在本机浏览器（localStorage）中，不会同步到其他设备或浏览器。论点顺序按 TAC 合格テキスト 分册整理，请对照手中教材目录核对增删。</div>
 </div>
 
 <div class="modal-backdrop" id="settingsModal">
@@ -257,17 +289,21 @@
     <input type="hidden" id="t_id">
     <div class="field">
       <label>标题</label>
-      <input type="text" id="t_title" placeholder="例：連結会計①資本連結 トレーニング">
+      <input type="text" id="t_title" placeholder="例：連結会計の基礎（資本連結）【トレーニング】演習">
     </div>
     <div class="field">
       <label>分类</label>
       <select id="t_category">
-        <option value="商業簿記・会計学">商業簿記・会計学</option>
         <option value="工業簿記・原価計算">工業簿記・原価計算</option>
+        <option value="商業簿記・会計学">商業簿記・会計学</option>
         <option value="過去問">過去問</option>
         <option value="模試">模試</option>
         <option value="総復習">総復習</option>
       </select>
+    </div>
+    <div class="field">
+      <label>教材分册（可留空，例：工Ⅰ / 商Ⅲ）</label>
+      <input type="text" id="t_book" placeholder="工Ⅰ">
     </div>
     <div class="field">
       <label>预计用时（小时）</label>
@@ -293,7 +329,20 @@
 <script>
 (function(){
   "use strict";
-  var STORAGE_KEY = "boki1_planner_state_v1";
+  var STORAGE_KEY = "boki1_planner_state_v2";
+
+  var CA = "工業簿記・原価計算";
+  var CB = "商業簿記・会計学";
+  var REVIEW = "復習";
+
+  // focus modes for the daily plan
+  var FOCUS = [
+    { key:"auto",  label:"都行（自动排）" },
+    { key:"ca",    label:"工業簿記・原価計算" },
+    { key:"cb",    label:"商業簿記・会計学" },
+    { key:"exam",  label:"過去問・模試" },
+    { key:"review",label:"只做复习" }
+  ];
 
   function uid(){ return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
   function fmtDate(d){
@@ -312,54 +361,94 @@
   }
 
   function catClass(cat){
-    if(cat==="商業簿記・会計学") return "cb";
-    if(cat==="工業簿記・原価計算") return "ca";
+    if(cat===CB) return "cb";
+    if(cat===CA) return "ca";
     if(cat==="過去問") return "past";
     if(cat==="模試") return "mock";
-    if(cat==="復習") return "review-total";
+    if(cat===REVIEW) return "review-total";
     return "default";
   }
 
   function makeTask(title, category, est, extra){
     var t = {
-      id: uid(), title: title, category: category, estHours: est, order: 0,
+      id: uid(), title: title, category: category, book: "", estHours: est, order: 0,
       priority: "mid", status: "pending", type: "normal", reviewStage: 0,
-      parentId: null, availableDate: null, completedDate: null
+      spawnsReview: false, parentId: null, availableDate: null, completedDate: null
     };
     return Object.assign(t, extra||{});
   }
 
+  // ---- TAC 合格テキスト / 合格トレーニング structure ----
+  // 工業簿記・原価計算 Ver.7.0 (Ⅰ〜Ⅲ), 商業簿記・会計学 Ver.17.0 (Ⅰ〜Ⅳ)
+  var CA_BOOKS = [
+    { book:"工Ⅰ", topics:[
+      "工業簿記・原価計算の基礎","原価計算基準・原価の分類","材料費会計","労務費会計","経費会計",
+      "製造間接費会計（予定配賦・差異分析）","部門別個別原価計算","個別原価計算（仕損・作業屑）"
+    ]},
+    { book:"工Ⅱ", topics:[
+      "単純総合原価計算","工程別総合原価計算","組別総合原価計算","等級別総合原価計算",
+      "総合原価計算における仕損・減損","連産品・副産物の計算",
+      "標準原価計算の基礎（差異分析）","標準原価計算の応用（歩留・配合差異）","原価差異の会計処理"
+    ]},
+    { book:"工Ⅲ", topics:[
+      "直接原価計算","CVP分析","最適セールス・ミックス","予算編成・予算実績差異分析",
+      "業務的意思決定","設備投資の意思決定","戦略的原価計算（ABC・品質原価・ライフサイクル）",
+      "事業部の業績測定","本社工場会計"
+    ]}
+  ];
+
+  var CB_BOOKS = [
+    { book:"商Ⅰ", topics:[
+      "簿記一巡と財務諸表の基礎","収益認識基準","現金預金・銀行勘定調整表","金銭債権・貸倒引当金",
+      "有価証券","有形固定資産（取得・売却・除却）","減価償却","繰延資産・研究開発費"
+    ]},
+    { book:"商Ⅱ", topics:[
+      "棚卸資産","無形固定資産・ソフトウェア","リース会計","減損会計","資産除去債務",
+      "引当金","退職給付会計","社債","純資産・株主資本等変動計算書",
+      "新株予約権・ストック・オプション","税効果会計"
+    ]},
+    { book:"商Ⅲ", topics:[
+      "企業結合・合併","株式交換・株式移転","事業分離","連結会計の基礎（資本連結）",
+      "連結会計（成果連結・未実現利益）","持分法","在外子会社の換算・連結",
+      "連結キャッシュ・フロー計算書","包括利益・連結包括利益計算書"
+    ]},
+    { book:"商Ⅳ", topics:[
+      "本支店会計","キャッシュ・フロー計算書（個別）","外貨換算会計","デリバティブ・ヘッジ会計",
+      "商品売買の特殊論点（割賦・委託・試用）","工事契約・特殊な収益認識",
+      "会計上の変更・誤謬の訂正","分配可能額の計算","財務諸表分析","会計学理論（概念フレームワーク）"
+    ]}
+  ];
+
   function buildDefaultPool(){
-    var CB = "商業簿記・会計学", CA = "工業簿記・原価計算";
-    var cbTopics = [
-      "財務諸表の基礎・注記事項","現金預金・銀行勘定調整表","金銭債権・貸倒引当金",
-      "有価証券（売買目的・満期保有・子会社株式等）","デリバティブ・ヘッジ会計","棚卸資産の評価（低価法等）",
-      "特殊商品売買（割賦・委託・試用）","有形固定資産（取得原価・減価償却）","減損会計",
-      "リース会計（ファイナンス・オペレーティング）","無形固定資産・繰延資産","引当金・退職給付会計",
-      "社債（発行・買入償還・満期償還）","純資産会計・株主資本等変動計算書","新株予約権・ストック・オプション",
-      "税効果会計","外貨換算会計","企業結合・合併・株式交換",
-      "連結会計①資本連結（支配獲得）","連結会計②成果連結（内部取引消去）","連結会計③持分法・在外子会社",
-      "キャッシュ・フロー計算書","本支店会計","事業分離・分配可能額",
-      "会計学理論総まとめ（概念フレームワーク等）"
-    ];
-    var caTopics = [
-      "費目別計算・個別原価計算","部門別個別原価計算","総合原価計算（単純・工程別）",
-      "組別・等級別総合原価計算","標準原価計算①差異分析基礎","標準原価計算②応用（配合差異等）",
-      "直接原価計算・CVP分析","予算編成・予算実績差異分析","本社工場会計",
-      "原価計算基準・理論","意思決定会計①業務的意思決定","意思決定会計②設備投資の意思決定",
-      "ライフサイクルコスティング・ABC"
-    ];
     var pool = [];
     var order = 1;
-    function addPair(topic, cat){
-      pool.push(makeTask(topic+"【テキスト】理解", cat, 1.5, {order: order++}));
-      pool.push(makeTask(topic+"【トレーニング】演習", cat, 1.5, {order: order++}));
+
+    function addVolume(vol, cat){
+      vol.topics.forEach(function(topic){
+        // テキスト = understand; no auto-review (review is driven by redoing problems)
+        pool.push(makeTask(topic+"【テキスト】理解", cat, 1.5, {
+          order: order++, book: vol.book
+        }));
+        // トレーニング = practice; completing this schedules the +3/+7/+21 reviews
+        pool.push(makeTask(topic+"【トレーニング】演習", cat, 1.5, {
+          order: order++, book: vol.book, spawnsReview: true
+        }));
+      });
     }
-    cbTopics.forEach(function(t){ addPair(t, CB); });
-    caTopics.forEach(function(t){ addPair(t, CA); });
-    for(var i=1;i<=8;i++) pool.push(makeTask("過去問演習 第"+i+"回", "過去問", 2, {order: order++}));
-    for(var j=1;j<=4;j++) pool.push(makeTask("模擬試験 第"+j+"回", "模試", 2, {order: order++}));
-    for(var k=1;k<=6;k++) pool.push(makeTask("苦手論点 総復習 "+k, "総復習", 1.5, {order: order++}));
+
+    // 工業 first, per the user's plan for week 1
+    CA_BOOKS.forEach(function(v){ addVolume(v, CA); });
+    CB_BOOKS.forEach(function(v){ addVolume(v, CB); });
+
+    for(var i=1;i<=12;i++){
+      pool.push(makeTask("過去問題集 第"+i+"回", "過去問", 2, {order: order++, book:"過去問"}));
+    }
+    for(var j=1;j<=4;j++){
+      pool.push(makeTask("あてる 直前予想模試 第"+j+"回", "模試", 2, {order: order++, book:"あてる"}));
+    }
+    for(var k=1;k<=6;k++){
+      pool.push(makeTask("苦手論点 総復習 "+k, "総復習", 1.5, {order: order++}));
+    }
     return pool;
   }
 
@@ -367,7 +456,8 @@
     return {
       settings: { examDate: "2026-11-15", dailyHoursDefault: 5, warnThreshold: 6, dailyOverrides: {} },
       pool: buildDefaultPool(),
-      dailyPlans: {}
+      dailyPlans: {},
+      dailyFocus: {}
     };
   }
 
@@ -381,6 +471,7 @@
         if(!state.settings.dailyOverrides) state.settings.dailyOverrides = {};
         if(!state.pool) state.pool = [];
         if(!state.dailyPlans) state.dailyPlans = {};
+        if(!state.dailyFocus) state.dailyFocus = {};
       } else {
         state = defaultState();
         saveState();
@@ -390,7 +481,7 @@
     }
   }
   function saveState(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
   }
 
   var toastTimer = null;
@@ -402,33 +493,49 @@
     toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 2600);
   }
 
+  function findTask(id){ return state.pool.find(function(t){ return t.id===id; }); }
+
   // ---------- core scheduling logic ----------
   function pendingTasks(){ return state.pool.filter(function(t){ return t.status==="pending"; }); }
 
   function isAvailable(t, asOf){ return !t.availableDate || t.availableDate <= asOf; }
 
-  function sortedQueue(asOf){
-    var pending = pendingTasks();
-    var avail = pending.filter(function(t){ return isAvailable(t, asOf); });
-    avail.sort(function(a,b){
-      var ar = a.type==="review" ? 0 : 1;
-      var br = b.type==="review" ? 0 : 1;
-      if(ar!==br) return ar-br;
-      if(ar===0){
-        var ad = a.availableDate||"", bd = b.availableDate||"";
-        if(ad!==bd) return ad<bd ? -1 : 1;
-      }
-      return a.order - b.order;
-    });
-    return avail;
+  function matchesFocus(t, focus){
+    if(focus==="ca") return t.category===CA;
+    if(focus==="cb") return t.category===CB;
+    if(focus==="exam") return t.category==="過去問" || t.category==="模試";
+    if(focus==="review") return false; // reviews are added separately
+    return true; // auto
   }
 
-  function buildPlanIds(budget, asOf){
-    var q = sortedQueue(asOf);
-    var ids = [];
-    var sum = 0;
-    for(var i=0;i<q.length;i++){
-      var t = q[i];
+  function getFocus(dateStr){
+    return state.dailyFocus[dateStr] || "auto";
+  }
+
+  // Due reviews always lead the plan, whatever the focus — spaced repetition
+  // breaks the moment you let it slip a day.
+  function buildPlanIds(budget, asOf, focus, excludeIds){
+    var exclude = excludeIds || [];
+    var avail = pendingTasks().filter(function(t){
+      return isAvailable(t, asOf) && exclude.indexOf(t.id) === -1;
+    });
+
+    var reviews = avail.filter(function(t){ return t.type==="review"; });
+    reviews.sort(function(a,b){
+      var ad = a.availableDate||"", bd = b.availableDate||"";
+      if(ad!==bd) return ad<bd ? -1 : 1;
+      return a.order - b.order;
+    });
+
+    var normal = avail.filter(function(t){ return t.type!=="review"; })
+                      .filter(function(t){ return matchesFocus(t, focus); });
+    normal.sort(function(a,b){ return a.order - b.order; });
+
+    var queue = reviews.concat(normal);
+
+    var ids = [], sum = 0;
+    for(var i=0;i<queue.length;i++){
+      var t = queue[i];
       if(ids.length===0 || sum + t.estHours <= budget + 0.001){
         ids.push(t.id);
         sum += t.estHours;
@@ -441,44 +548,65 @@
   }
 
   function getDailyBudget(dateStr){
-    if(state.settings.dailyOverrides.hasOwnProperty(dateStr)) return state.settings.dailyOverrides[dateStr];
+    if(Object.prototype.hasOwnProperty.call(state.settings.dailyOverrides, dateStr)){
+      return state.settings.dailyOverrides[dateStr];
+    }
     return state.settings.dailyHoursDefault;
   }
 
-  function ensureTodayPlan(force){
+  // Rebuild today's plan, but never drop a task that was already checked off today.
+  function rebuildTodayPlan(){
     var today = todayStr();
-    if(force || !state.dailyPlans[today]){
-      state.dailyPlans[today] = buildPlanIds(getDailyBudget(today), today);
+    var prev = state.dailyPlans[today] || [];
+    var keep = prev.filter(function(id){
+      var t = findTask(id);
+      return t && t.status==="done" && t.completedDate===today;
+    });
+    var keptHours = keep.reduce(function(s,id){
+      var t = findTask(id); return s + (t ? t.estHours : 0);
+    }, 0);
+    var budget = Math.max(getDailyBudget(today) - keptHours, 0);
+    var rest = buildPlanIds(budget, today, getFocus(today), keep);
+    state.dailyPlans[today] = keep.concat(rest);
+    saveState();
+  }
+
+  function ensureTodayPlan(){
+    var today = todayStr();
+    if(!state.dailyPlans[today]){
+      state.dailyPlans[today] = buildPlanIds(getDailyBudget(today), today, getFocus(today), []);
       saveState();
     }
   }
 
   function markDone(taskId){
-    var t = state.pool.find(function(x){ return x.id===taskId; });
+    var t = findTask(taskId);
     if(!t) return;
     t.status = "done";
     t.completedDate = todayStr();
-    if(t.type === "normal"){
+    if(t.type === "normal" && t.spawnsReview){
       var stages = [3,7,21];
+      var base = t.title.replace(/【トレーニング】演習$/, "");
       stages.forEach(function(days, idx){
         state.pool.push(makeTask(
-          "【复习+" + days + "天】" + t.title.replace(/【テキスト】理解|【トレーニング】演習/,""),
-          "復習", 0.5,
+          "【复习+" + days + "天】" + base, REVIEW, 0.5,
           {
-            order: t.order, type: "review", reviewStage: idx+1,
+            order: t.order, type: "review", reviewStage: idx+1, book: t.book,
             parentId: t.id, availableDate: addDays(todayStr(), days)
           }
         ));
       });
       toast("✅ 完成！已自动生成复习任务：+3天 / +7天 / +21天");
-    } else {
+    } else if(t.type === "review"){
       toast("✅ 复习完成！辛苦了");
+    } else {
+      toast("✅ 完成！");
     }
     saveState();
   }
 
   function undoDone(taskId){
-    var t = state.pool.find(function(x){ return x.id===taskId; });
+    var t = findTask(taskId);
     if(!t) return;
     t.status = "pending";
     t.completedDate = null;
@@ -511,8 +639,7 @@
     var remainH = pendingTasks().reduce(function(s,t){ return s+t.estHours; }, 0);
     var today = todayStr();
     var exam = state.settings.examDate;
-    var remainDays = diffDays(today, exam);
-    return { remainH: remainH, remainDays: remainDays, exam: exam, today: today };
+    return { remainH: remainH, remainDays: diffDays(today, exam), exam: exam, today: today };
   }
 
   // ---------- rendering ----------
@@ -549,9 +676,15 @@
       '<div class="metrics">'+
         '<span>剩余任务时间　<b>'+b.remainH.toFixed(1)+'h</b></span>'+
         '<span>÷ 剩余天数　<b>'+Math.max(b.remainDays,0)+'天</b></span>'+
-        '<span>= 需要的日均学习时间　<b style="color:inherit">'+neededTxt+'h</b></span>'+
+        '<span>= 需要的日均学习时间　<b>'+neededTxt+'h</b></span>'+
         '<span>警告阈值　'+threshold+'h</span>'+
       '</div>';
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
   }
 
   function taskRowHtml(t, opts){
@@ -559,7 +692,9 @@
     var showCheckbox = opts.showCheckbox !== false;
     var isDone = t.status === "done";
     var locked = t.type==="review" && t.availableDate && t.availableDate > todayStr();
-    var tags = '<span class="tag '+catClass(t.category)+'">'+t.category+'</span>';
+
+    var tags = '<span class="tag '+catClass(t.category)+'">'+escapeHtml(t.category)+'</span>';
+    if(t.book) tags += '<span class="tag book">'+escapeHtml(t.book)+'</span>';
     tags += '<span class="tag est">'+t.estHours+'h</span>';
     if(t.priority && t.priority!=="mid") tags += '<span class="tag pr-'+t.priority+'">'+(t.priority==="high"?"优先高":"优先低")+'</span>';
     if(t.type==="review") tags += '<span class="tag review-total">复习 #'+t.reviewStage+'</span>';
@@ -568,7 +703,8 @@
 
     var cbHtml = "";
     if(showCheckbox){
-      cbHtml = '<input type="checkbox" '+(isDone?"checked":"")+(locked?" disabled":"")+' data-action="'+(isDone?"undo":"done")+'" data-id="'+t.id+'">';
+      cbHtml = '<input type="checkbox" '+(isDone?"checked":"")+(locked?" disabled":"")+
+               ' data-action="'+(isDone?"undo":"done")+'" data-id="'+t.id+'">';
     }
     var actions = "";
     if(opts.showPoolActions){
@@ -581,43 +717,58 @@
     }
     return '<div class="task-row'+(isDone?" done":"")+'">'+
       cbHtml+
-      '<div class="task-main"><div class="task-title">'+escapeHtml(t.title)+'</div><div class="task-meta">'+tags+'</div></div>'+
+      '<div class="task-main"><div class="task-title">'+escapeHtml(t.title)+'</div>'+
+      '<div class="task-meta">'+tags+'</div></div>'+
       actions+
       '</div>';
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, function(c){
-      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
-    });
+  function renderFocus(){
+    var today = todayStr();
+    var cur = getFocus(today);
+    document.getElementById("focusChips").innerHTML = FOCUS.map(function(f){
+      return '<button class="'+(cur===f.key?"active":"")+'" data-focus="'+f.key+'">'+f.label+'</button>';
+    }).join("");
+
+    var dueReviews = pendingTasks().filter(function(t){
+      return t.type==="review" && isAvailable(t, today);
+    }).length;
+    var note = "到期的复习任务始终排在最前，不受此选择影响";
+    if(dueReviews>0) note += "（今天有 "+dueReviews+" 个到期复习）";
+    document.getElementById("focusNote").textContent = note;
   }
 
   function renderToday(){
-    ensureTodayPlan(false);
+    ensureTodayPlan();
     var today = todayStr();
     var ids = state.dailyPlans[today] || [];
-    var tasks = ids.map(function(id){ return state.pool.find(function(t){ return t.id===id; }); }).filter(Boolean);
+    var tasks = ids.map(findTask).filter(Boolean);
 
     document.getElementById("budgetInput").value = getDailyBudget(today);
 
     var container = document.getElementById("todayList");
     if(tasks.length===0){
-      container.innerHTML = '<div class="empty-hint">今天没有安排任务。请提高时间预算，或到任务池中查看。</div>';
+      var focus = getFocus(today);
+      var msg = focus==="auto"
+        ? "今天没有安排任务。请提高时间预算，或到任务池中查看。"
+        : "该分类下暂时没有可安排的任务（可能已全部完成）。换一个分类，或选「都行（自动排）」。";
+      container.innerHTML = '<div class="empty-hint">'+msg+'</div>';
     } else {
       container.innerHTML = tasks.map(function(t){ return taskRowHtml(t, {showCheckbox:true}); }).join("");
     }
 
-    var doneSum = tasks.filter(function(t){ return t.status==="done"; }).reduce(function(s,t){ return s+t.estHours; },0);
+    var doneSum = tasks.filter(function(t){ return t.status==="done"; })
+                       .reduce(function(s,t){ return s+t.estHours; },0);
     var totalSum = tasks.reduce(function(s,t){ return s+t.estHours; },0);
-    var budget = getDailyBudget(today);
     var pct = totalSum>0 ? Math.min(100, doneSum/totalSum*100) : 0;
     document.getElementById("todayProgressBar").style.width = pct+"%";
     document.getElementById("todaySummary").textContent =
-      "完成 "+doneSum.toFixed(1)+"h / 计划 "+totalSum.toFixed(1)+"h（预算 "+budget+"h）";
+      "完成 "+doneSum.toFixed(1)+"h / 计划 "+totalSum.toFixed(1)+"h（预算 "+getDailyBudget(today)+"h）";
   }
 
   function renderStats(){
-    var doneHours = state.pool.filter(function(t){ return t.status==="done"; }).reduce(function(s,t){ return s+t.estHours; },0);
+    var doneHours = state.pool.filter(function(t){ return t.status==="done"; })
+                              .reduce(function(s,t){ return s+t.estHours; },0);
     var remainHours = pendingTasks().reduce(function(s,t){ return s+t.estHours; },0);
     var total = doneHours + remainHours;
     var pct = total>0 ? Math.round(doneHours/total*100) : 0;
@@ -627,6 +778,18 @@
     document.getElementById("overallProgressBar").style.width = pct+"%";
   }
 
+  function renderCatProgress(){
+    var cats = [CA, CB, "過去問", "模試"];
+    var html = cats.map(function(c){
+      var all = state.pool.filter(function(t){ return t.category===c; });
+      var done = all.filter(function(t){ return t.status==="done"; }).length;
+      var pct = all.length>0 ? Math.round(done/all.length*100) : 0;
+      var short = c===CA ? "工原" : (c===CB ? "商会" : c);
+      return '<div class="stat-box"><span>'+escapeHtml(short)+'</span><b>'+done+'/'+all.length+'　'+pct+'%</b></div>';
+    }).join("");
+    document.getElementById("catProgress").innerHTML = html;
+  }
+
   function renderHeatmap(){
     var counts = {};
     state.pool.forEach(function(t){
@@ -634,12 +797,8 @@
         counts[t.completedDate] = (counts[t.completedDate]||0)+1;
       }
     });
-    var N = 70;
-    var cellsHtml = "";
-    var days = [];
-    for(var i=N-1;i>=0;i--){
-      days.push(addDays(todayStr(), -i));
-    }
+    var N = 70, cellsHtml = "", days = [];
+    for(var i=N-1;i>=0;i--) days.push(addDays(todayStr(), -i));
     days.forEach(function(d){
       var c = counts[d]||0;
       var lvl = c===0?"":(c===1?"l1":(c===2?"l2":"l3"));
@@ -647,23 +806,17 @@
     });
     document.getElementById("heatmap").innerHTML = cellsHtml;
 
-    // streak calc
-    var streak = 0;
-    var cursor = todayStr();
-    if(!counts[cursor]) { cursor = addDays(cursor,-1); }
-    while(counts[cursor]){
-      streak++;
-      cursor = addDays(cursor,-1);
-    }
-    var totalCheckinDays = Object.keys(counts).length;
-    document.getElementById("streakLabel").textContent = "连续 "+streak+" 天 / 累计 "+totalCheckinDays+" 天";
+    var streak = 0, cursor = todayStr();
+    if(!counts[cursor]) cursor = addDays(cursor,-1);
+    while(counts[cursor]){ streak++; cursor = addDays(cursor,-1); }
+    document.getElementById("streakLabel").textContent =
+      "连续 "+streak+" 天 / 累计 "+Object.keys(counts).length+" 天";
   }
 
   function renderCategoryTabs(){
-    var cats = ["全部","商業簿記・会計学","工業簿記・原価計算","過去問","模試","総復習","復習"];
-    var tabsEl = document.getElementById("categoryTabs");
-    tabsEl.innerHTML = cats.map(function(c){
-      return '<button class="'+(activeCat===c?"active":"")+'" data-cat="'+c+'">'+c+'</button>';
+    var cats = ["全部", CA, CB, "過去問", "模試", "総復習", REVIEW];
+    document.getElementById("categoryTabs").innerHTML = cats.map(function(c){
+      return '<button class="'+(activeCat===c?"active":"")+'" data-cat="'+escapeHtml(c)+'">'+escapeHtml(c)+'</button>';
     }).join("");
   }
 
@@ -674,15 +827,19 @@
     if(pend.length===0){
       container.innerHTML = '<div class="empty-hint">该分类下暂无未完成的任务。</div>';
     } else {
-      container.innerHTML = pend.map(function(t){ return taskRowHtml(t, {showCheckbox:false, showPoolActions:true}); }).join("");
+      container.innerHTML = pend.map(function(t){
+        return taskRowHtml(t, {showCheckbox:false, showPoolActions:true});
+      }).join("");
     }
   }
 
   function renderAll(){
     renderCountdown();
     renderWarning();
+    renderFocus();
     renderToday();
     renderStats();
+    renderCatProgress();
     renderHeatmap();
     renderCategoryTabs();
     renderPool();
@@ -691,14 +848,24 @@
   // ---------- event wiring ----------
   document.addEventListener("click", function(e){
     var t = e.target;
-    if(t.dataset && t.dataset.action){
+    if(!t.dataset) return;
+
+    if(t.dataset.focus){
+      state.dailyFocus[todayStr()] = t.dataset.focus;
+      rebuildTodayPlan();
+      renderAll();
+      var f = FOCUS.find(function(x){ return x.key===t.dataset.focus; });
+      toast("已按「"+(f?f.label:"")+"」重新安排今日任务");
+      return;
+    }
+    if(t.dataset.action){
       var id = t.dataset.id;
       if(t.dataset.action==="up") moveTask(id,-1);
       else if(t.dataset.action==="down") moveTask(id,1);
       else if(t.dataset.action==="delete") deleteTask(id);
       else if(t.dataset.action==="edit") openTaskModal(id);
     }
-    if(t.dataset && t.dataset.cat){
+    if(t.dataset.cat){
       activeCat = t.dataset.cat;
       renderCategoryTabs();
       renderPool();
@@ -716,19 +883,13 @@
     }
   });
 
-  document.getElementById("regenBtn").addEventListener("click", function(){
-    ensureTodayPlan(true);
-    renderAll();
-    toast("已重新生成今日计划");
-  });
-
   document.getElementById("applyBudgetBtn").addEventListener("click", function(){
     var v = parseFloat(document.getElementById("budgetInput").value);
     if(isNaN(v) || v<0) v = state.settings.dailyHoursDefault;
     state.settings.dailyOverrides[todayStr()] = v;
-    ensureTodayPlan(true);
-    saveState();
+    rebuildTodayPlan();
     renderAll();
+    toast("已按 "+v+"h 预算重排今日任务");
   });
 
   // settings modal
@@ -739,7 +900,9 @@
     document.getElementById("s_warnThreshold").value = state.settings.warnThreshold;
     settingsModal.classList.add("open");
   });
-  document.getElementById("settingsCancel").addEventListener("click", function(){ settingsModal.classList.remove("open"); });
+  document.getElementById("settingsCancel").addEventListener("click", function(){
+    settingsModal.classList.remove("open");
+  });
   document.getElementById("settingsSave").addEventListener("click", function(){
     state.settings.examDate = document.getElementById("s_examDate").value || state.settings.examDate;
     var dh = parseFloat(document.getElementById("s_dailyHours").value);
@@ -767,14 +930,17 @@
     document.getElementById("taskModalTitle").textContent = editId ? "编辑任务" : "添加任务";
     document.getElementById("t_id").value = editId || "";
     if(editId){
-      var t = state.pool.find(function(x){ return x.id===editId; });
+      var t = findTask(editId);
+      if(!t) return;
       document.getElementById("t_title").value = t.title;
       document.getElementById("t_category").value = t.category;
+      document.getElementById("t_book").value = t.book || "";
       document.getElementById("t_est").value = t.estHours;
       document.getElementById("t_priority").value = t.priority;
     } else {
       document.getElementById("t_title").value = "";
-      document.getElementById("t_category").value = "商業簿記・会計学";
+      document.getElementById("t_category").value = CA;
+      document.getElementById("t_book").value = "";
       document.getElementById("t_est").value = 1.5;
       document.getElementById("t_priority").value = "mid";
     }
@@ -787,14 +953,18 @@
     var title = document.getElementById("t_title").value.trim();
     if(!title){ alert("请输入标题"); return; }
     var category = document.getElementById("t_category").value;
+    var book = document.getElementById("t_book").value.trim();
     var est = parseFloat(document.getElementById("t_est").value) || 1.5;
     var priority = document.getElementById("t_priority").value;
     if(id){
-      var t = state.pool.find(function(x){ return x.id===id; });
-      t.title = title; t.category = category; t.estHours = est; t.priority = priority;
+      var t = findTask(id);
+      if(t){ t.title=title; t.category=category; t.book=book; t.estHours=est; t.priority=priority; }
     } else {
       var maxOrder = state.pool.reduce(function(m,x){ return Math.max(m,x.order); }, 0);
-      state.pool.push(makeTask(title, category, est, {order: maxOrder+1, priority: priority}));
+      state.pool.push(makeTask(title, category, est, {
+        order: maxOrder+1, priority: priority, book: book,
+        spawnsReview: /演習|トレーニング|過去問|模試/.test(title)
+      }));
     }
     saveState();
     taskModal.classList.remove("open");
@@ -806,7 +976,7 @@
   });
 
   loadState();
-  ensureTodayPlan(false);
+  ensureTodayPlan();
   renderAll();
 })();
 </script>
