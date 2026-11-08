@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="glass">
+      <path d="M168 214 L344 214 L300 352 Q256 372 212 352 Z"/>
+    </clipPath>
+  </defs>
+  <rect width="512" height="512" fill="#FFF3E0"/>
+  <circle cx="256" cy="262" r="176" fill="#FDE4D0"/>
+  <!-- cream swirl -->
+  <circle cx="206" cy="206" r="34" fill="#FFFDF7"/>
+  <circle cx="306" cy="206" r="34" fill="#FFFDF7"/>
+  <circle cx="256" cy="186" r="44" fill="#FFFDF7"/>
+  <!-- cherry -->
+  <path d="M262 142 Q270 108 296 96" stroke="#7A9E5A" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <circle cx="256" cy="148" r="24" fill="#E8607A"/>
+  <circle cx="248" cy="140" r="7" fill="#FFFFFF" opacity=".7"/>
+  <!-- layers -->
+  <g clip-path="url(#glass)">
+    <rect x="150" y="210" width="212" height="48" fill="#FFFDF7"/>
+    <rect x="150" y="258" width="212" height="44" fill="#F4A7B9"/>
+    <rect x="150" y="302" width="212" height="70" fill="#E0AC6E"/>
+    <circle cx="200" cy="282" r="9" fill="#E8607A"/>
+    <circle cx="300" cy="276" r="8" fill="#E8607A"/>
+  </g>
+  <!-- glass -->
+  <path d="M168 214 L344 214 L300 352 Q256 372 212 352 Z" fill="none" stroke="#7A5A44" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M256 364 L256 400" stroke="#7A5A44" stroke-width="12" stroke-linecap="round"/>
+  <ellipse cx="256" cy="404" rx="48" ry="11" fill="#7A5A44"/>
+</svg>
