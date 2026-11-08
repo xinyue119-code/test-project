@@ -1,5 +1,5 @@
 // 离线缓存：先用缓存秒开，同时在后台更新（下次打开即为新版本）
-const CACHE = 'parfait-v2';
+const CACHE = 'parfait-v3';
 const FONT_CACHE = 'parfait-fonts-v1';
 const ASSETS = [
   './',

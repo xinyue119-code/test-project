@@ -83,10 +83,15 @@ async function entries() {
   return cache;
 }
 function invalidate() { cache = null; revokeAll(); }
-function allTags(list) {
-  const m = new Map();
-  list.forEach((e) => (e.tags || []).forEach((t) => m.set(t, (m.get(t) || 0) + 1)));
-  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh')).map((x) => x[0]);
+// 记录正文；旧版记录（要求/实际/感想/标签分开存）自动合并成一段
+function noteOf(e) {
+  if (typeof e.note === 'string') return e.note;
+  return [
+    e.request && `我的要求：${e.request}`,
+    e.actual && `实际做出来的：${e.actual}`,
+    e.thoughts,
+    e.tags?.length && e.tags.map((t) => '#' + t).join(' '),
+  ].filter(Boolean).join('\n\n');
 }
 let persistAsked = false;
 function requestPersist() {
@@ -102,7 +107,7 @@ const routes = [
   [/^#\/new(?:\?date=(\d{4}-\d{2}-\d{2}))?$/, 'new', (d) => viewForm(null, d)],
   [/^#\/edit\/([\w-]+)$/, 'form', (id) => viewForm(id)],
   [/^#\/entry\/([\w-]+)$/, 'detail', (id) => viewDetail(id)],
-  [/^#\/review(?:\?tag=(.+))?$/, 'review', (tag) => viewReview(tag && decodeURIComponent(tag))],
+  [/^#\/review$/, 'review', () => viewReview()],
 ];
 const scrollMem = {};
 let curKey = null;
@@ -191,7 +196,7 @@ function rowCard(e, extra = '', snippet = false) {
         <div class="row-name">${esc(nameOf(e))}</div>
         <div class="row-meta">${typeTag(e.type)}${e.rating ? stars(e.rating, 'sm') : ''}</div>
         <div class="row-date">${fmtShort(e.datetime)}${extra}</div>
-        ${snippet && e.thoughts ? `<div class="row-snippet">${esc(e.thoughts)}</div>` : ''}
+        ${snippet && noteOf(e) ? `<div class="row-snippet">${esc(noteOf(e))}</div>` : ''}
       </div>
     </div>`;
 }
@@ -464,11 +469,9 @@ async function viewForm(id, dateParam) {
     photos: e ? [...(e.photos || [])] : [],
     type: e?.type || 'order',
     rating: e?.rating || 0,
-    tags: e ? [...(e.tags || [])] : [],
     busy: 0,
   };
   const dt = e?.datetime || (dateParam ? `${dateParam}T${pad(now.getHours())}:${pad(now.getMinutes())}` : toLocal(now));
-  const tagPool = allTags(list);
 
   headerSub(isNew ? '记一笔' : '编辑记录');
   view.innerHTML = `
@@ -482,16 +485,8 @@ async function viewForm(id, dateParam) {
         ${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-v="${v}" aria-label="${v} 星">★</button>`).join('')}
         <span class="star-label" id="starLabel"></span>
       </div>
-      <label class="field"><span class="field-label">我的要求 <em>跟店长说了什么</em></span>
-        <textarea class="in" name="request" rows="2" placeholder="例：想要酸一点、不要太甜、加草莓…">${esc(e?.request)}</textarea></label>
-      <label class="field"><span class="field-label">实际做出来的</span>
-        <textarea class="in" name="actual" rows="2" placeholder="店长做了什么、用了哪些料…">${esc(e?.actual)}</textarea></label>
-      <label class="field"><span class="field-label">感想</span>
-        <textarea class="in" name="thoughts" rows="4" placeholder="吃下去的感觉、心情、想下次试试的…">${esc(e?.thoughts)}</textarea></label>
-      <div class="field"><span class="field-label">标签</span>
-        <div class="in tag-box" id="tagBox"><span id="tagChips" style="display:contents"></span><input id="tagInput" placeholder="输入后按回车" enterkeyhint="done"></div>
-        <div class="tag-sugg" id="tagSugg"></div>
-      </div>
+      <label class="field"><span class="field-label">记录</span>
+        <textarea class="in" name="note" rows="5" placeholder="跟店长说了什么、做出来是什么样、吃起来什么感觉…">${esc(e ? noteOf(e) : '')}</textarea></label>
       <div class="row2">
         <label class="field"><span class="field-label">时间</span>
           <input class="in" type="datetime-local" name="datetime" value="${dt}" required></label>
@@ -507,7 +502,6 @@ async function viewForm(id, dateParam) {
   const form = $('#f');
   const photosEl = $('#photos');
   const saveBtn = $('#saveBtn');
-  const tagInput = $('#tagInput');
 
   // 照片
   const drawPhotos = () => {
@@ -556,53 +550,12 @@ async function viewForm(id, dateParam) {
   });
   drawStars();
 
-  // 标签
-  const addTag = (t) => {
-    t = t.replace(/^#/, '').trim();
-    if (t && !st.tags.includes(t)) st.tags.push(t);
-    tagInput.value = '';
-    drawTags();
-  };
-  const drawTags = () => {
-    $('#tagChips').innerHTML = st.tags.map((t, i) => `<span class="chip on">${esc(t)}<button type="button" data-rmtag="${i}" aria-label="移除">×</button></span>`).join('');
-    const q = tagInput.value.trim();
-    const sugg = tagPool.filter((t) => !st.tags.includes(t) && (!q || t.toLowerCase().includes(q.toLowerCase()))).slice(0, 12);
-    let html = sugg.map((t) => `<button type="button" class="chip sm" data-addtag="${esc(t)}">${esc(t)}</button>`).join('');
-    if (q && !tagPool.includes(q) && !st.tags.includes(q)) html += `<button type="button" class="chip sm new" data-addtag="${esc(q)}">＋ 新标签「${esc(q)}」</button>`;
-    $('#tagSugg').innerHTML = html;
-  };
-  $('#tagBox').addEventListener('click', (ev) => {
-    const rm = ev.target.closest('[data-rmtag]');
-    if (rm) { st.tags.splice(Number(rm.dataset.rmtag), 1); drawTags(); return; }
-    tagInput.focus();
-  });
-  $('#tagSugg').addEventListener('click', (ev) => {
-    const b = ev.target.closest('[data-addtag]');
-    if (b) addTag(b.dataset.addtag);
-  });
-  tagInput.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && !ev.isComposing) {
-      ev.preventDefault();
-      if (tagInput.value.trim()) addTag(tagInput.value);
-    } else if (ev.key === 'Backspace' && !tagInput.value && st.tags.length) {
-      st.tags.pop();
-      drawTags();
-    }
-  });
-  tagInput.addEventListener('input', () => {
-    const v = tagInput.value;
-    if (/[,，、\s]$/.test(v) && v.trim()) addTag(v.slice(0, -1));
-    else drawTags();
-  });
-  drawTags();
-
   $$('textarea', form).forEach((ta) => { autoGrow(ta); ta.addEventListener('input', () => autoGrow(ta)); });
   $('#cancelBtn').onclick = () => goBack(isNew ? '#/timeline' : `#/entry/${id}`);
 
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (st.busy) return;
-    if (tagInput.value.trim()) addTag(tagInput.value);
     const fd = new FormData(form);
     const priceRaw = String(fd.get('price') || '').trim().replace(/[¥￥,\s]/g, '');
     const price = priceRaw === '' ? null : Number(priceRaw);
@@ -613,16 +566,13 @@ async function viewForm(id, dateParam) {
       name: String(fd.get('name') || '').trim(),
       type: st.type,
       photos: st.photos,
-      request: String(fd.get('request') || '').trim(),
-      actual: String(fd.get('actual') || '').trim(),
       rating: st.rating,
-      thoughts: String(fd.get('thoughts') || '').trim(),
-      tags: st.tags,
+      note: String(fd.get('note') || '').trim(),
       price,
       createdAt: e?.createdAt || Date.now(),
       updatedAt: Date.now(),
     };
-    if (!entry.name && !entry.photos.length && !entry.thoughts) {
+    if (!entry.name && !entry.photos.length && !entry.note) {
       toast('至少写个名字吧～');
       form.name.focus();
       return;
@@ -681,12 +631,6 @@ async function viewDetail(id) {
   headerSub(fmtShort(e.datetime).split(' ').slice(0, 2).join(' '), `<a class="text-btn" href="#/edit/${e.id}">编辑</a>`);
   const n = e.photos?.length || 0;
   const sec = (icon, title, text, cls = '') => (text ? `<section class="card d-sec ${cls}"><h4>${title}</h4><p>${esc(text)}</p></section>` : '');
-  let vs = '';
-  if (e.request && e.actual) {
-    vs = `<div class="d-vs">${sec('', '我的要求', e.request)}<div class="arrow">↓</div>${sec('', '实际做出来的', e.actual)}</div>`;
-  } else {
-    vs = sec('', '我的要求', e.request) + sec('', '实际做出来的', e.actual);
-  }
   view.innerHTML = `
     ${n ? `<div class="gallery-wrap"><div class="gallery" id="gallery">${e.photos.map((p, i) => `<img src="${urlFor(p.full)}" data-i="${i}" alt="照片 ${i + 1}">`).join('')}</div></div>
       ${n > 1 ? `<div class="gallery-count">共 ${n} 张 · 左右滑动 · 点开看大图</div>` : ''}` : ''}
@@ -696,9 +640,7 @@ async function viewDetail(id) {
       <div class="d-rating">${e.rating ? `${stars(e.rating, 'lg')}<span>${RATING_TEXT[e.rating]}</span>` : '<span>未评分</span>'}</div>
       <div class="d-date">${fmtFull(e.datetime)}</div>
     </section>
-    ${vs}
-    ${sec('', '感想', e.thoughts, 'thoughts')}
-    ${e.tags?.length ? `<div class="d-tags">${e.tags.map((t) => `<a class="chip sm" href="#/review?tag=${encodeURIComponent(t)}"># ${esc(t)}</a>`).join('')}</div>` : ''}
+    ${sec('', '记录', noteOf(e), 'thoughts')}
     <div class="d-actions">
       <a class="btn ghost" href="#/edit/${e.id}">编辑</a>
       <button class="btn danger" id="delBtn">删除</button>
@@ -718,7 +660,7 @@ async function viewDetail(id) {
 }
 
 /* ================= 回顾 ================= */
-const rv = { q: '', type: 'all', min: 0, tags: new Set(), sort: 'new' };
+const rv = { q: '', type: 'all', min: 0, sort: 'new' };
 let installPrompt = null;
 window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); installPrompt = ev; });
 
@@ -727,9 +669,8 @@ function filterList(list) {
   let out = list.filter((e) => {
     if (rv.type !== 'all' && e.type !== rv.type) return false;
     if (rv.min && (e.rating || 0) < rv.min) return false;
-    if (rv.tags.size && ![...rv.tags].every((t) => (e.tags || []).includes(t))) return false;
     if (q) {
-      const hay = [e.name, e.request, e.actual, e.thoughts, ...(e.tags || [])].join('\n').toLowerCase();
+      const hay = [e.name, noteOf(e)].join('\n').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -738,15 +679,9 @@ function filterList(list) {
   return out;
 }
 
-async function viewReview(tagParam) {
+async function viewReview() {
   headerPlain('回顾');
-  if (tagParam) {
-    Object.assign(rv, { q: '', type: 'all', min: 0, sort: 'new' });
-    rv.tags = new Set([tagParam]);
-    history.replaceState(null, '', '#/review');
-  }
   const list = await entries();
-  const tags = allTags(list);
   const thisMonth = todayKey().slice(0, 7);
   const rated = list.filter((e) => e.rating);
   const avg = rated.length ? (rated.reduce((s, e) => s + e.rating, 0) / rated.length).toFixed(1) : '–';
@@ -759,7 +694,7 @@ async function viewReview(tagParam) {
       <div><b>${list.filter((e) => e.datetime.startsWith(thisMonth)).length}</b><span>本月</span></div>
       <div><b>${avg}</b><span>平均星级</span></div>
     </div>
-    <div class="search"><input class="in" type="search" id="q" placeholder="搜索名称、要求、感想、标签…" value="${esc(rv.q)}" enterkeyhint="search"></div>
+    <div class="search"><input class="in" type="search" id="q" placeholder="搜索名称、记录…" value="${esc(rv.q)}" enterkeyhint="search"></div>
     <div class="quick">
       <button class="btn ghost" data-preset="top">★ 高分记录</button>
       <button class="btn ghost" data-preset="reset">清除筛选</button>
@@ -770,7 +705,6 @@ async function viewReview(tagParam) {
     <div class="filter-row" id="fMin"><span class="fl">评分</span>
       ${[[0, '全部'], [3, '★3 以上'], [4, '★4 以上'], [5, '★5']].map(([v, l]) => `<button class="chip" data-min="${v}">${l}</button>`).join('')}
     </div>
-    ${tags.length ? `<div class="filter-row" id="fTags"><span class="fl">标签</span>${tags.map((t) => `<button class="chip" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
     <div class="sort-row">
       <span class="count" id="count"></span>
       <div class="seg" id="fSort"><button data-sort="new">最新</button><button data-sort="rating">高分</button></div>
@@ -791,7 +725,6 @@ async function viewReview(tagParam) {
   const sync = () => {
     $$('#fType .chip').forEach((b) => b.classList.toggle('on', b.dataset.type === rv.type));
     $$('#fMin .chip').forEach((b) => b.classList.toggle('on', Number(b.dataset.min) === rv.min));
-    $$('#fTags .chip').forEach((b) => b.classList.toggle('on', rv.tags.has(b.dataset.tag)));
     $$('#fSort button').forEach((b) => b.classList.toggle('on', b.dataset.sort === rv.sort));
     const res = filterList(list);
     $('#count').textContent = `${res.length} 条记录`;
@@ -806,10 +739,9 @@ async function viewReview(tagParam) {
     if (!b) return;
     if (b.dataset.type) rv.type = b.dataset.type;
     else if (b.dataset.min != null) rv.min = Number(b.dataset.min);
-    else if (b.dataset.tag) { rv.tags.has(b.dataset.tag) ? rv.tags.delete(b.dataset.tag) : rv.tags.add(b.dataset.tag); }
     else if (b.dataset.sort) rv.sort = b.dataset.sort;
     else if (b.dataset.preset === 'top') { rv.min = 4; rv.sort = 'rating'; }
-    else if (b.dataset.preset === 'reset') { Object.assign(rv, { q: '', type: 'all', min: 0, sort: 'new' }); rv.tags = new Set(); $('#q').value = ''; }
+    else if (b.dataset.preset === 'reset') { Object.assign(rv, { q: '', type: 'all', min: 0, sort: 'new' }); $('#q').value = ''; }
     else return;
     sync();
   };
@@ -900,11 +832,8 @@ function normalizeImported(e) {
     photos: (Array.isArray(e.photos) ? e.photos : [])
       .map((p) => ({ full: dataURLToBlob(p?.full), thumb: dataURLToBlob(p?.thumb || p?.full) }))
       .filter((p) => p.full),
-    request: String(e.request || ''),
-    actual: String(e.actual || ''),
     rating: Math.max(0, Math.min(5, Math.round(Number(e.rating) || 0))),
-    thoughts: String(e.thoughts || ''),
-    tags: (Array.isArray(e.tags) ? e.tags : []).map(String).filter(Boolean),
+    note: noteOf(e),
     price: Number.isFinite(price) ? price : null,
     createdAt: Number(e.createdAt) || Date.now(),
     updatedAt: Number(e.updatedAt) || Date.now(),

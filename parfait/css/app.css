@@ -368,11 +368,6 @@ textarea.in:focus { border: 0; background: repeating-linear-gradient(to bottom, 
 .star-pick button:active { transform: scale(1.15) rotate(-8deg); }
 .star-label { margin-left: auto; font-family: var(--f-hand); font-size: 16px; color: var(--ink2); white-space: nowrap; }
 
-.tag-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 2px; min-height: 46px; }
-.tag-box input { flex: 1; min-width: 100px; border: 0; outline: none; background: transparent; font-size: 16px; padding: 4px; }
-.tag-box .chip { padding: 4px 4px 4px 12px; }
-.tag-box .chip button { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; color: var(--ink2); }
-.tag-sugg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 
 .actionbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
@@ -419,13 +414,8 @@ textarea.in:focus { border: 0; background: repeating-linear-gradient(to bottom, 
   margin: 0; white-space: pre-wrap; word-break: break-word; line-height: 32px;
   background: repeating-linear-gradient(to bottom, transparent 0 31px, var(--line) 31px 32px);
 }
-.d-vs { display: grid; margin-top: 14px; }
-.d-vs .d-sec { margin-top: 0; }
-.d-vs .d-sec:last-child h4::before { background: var(--bean-l); }
-.d-vs .arrow { text-align: center; color: var(--shu); font-family: var(--f-num); font-size: 26px; line-height: 1; padding: 6px 0; transform: rotate(-6deg); }
 .d-sec.thoughts h4::before { background: var(--ochre-l); }
 .d-sec.thoughts p { font-size: 16px; }
-.d-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
 .d-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 24px; }
 
 .viewer { position: fixed; inset: 0; z-index: 100; background: rgba(40, 32, 25, .94); animation: fadein .15s; }
