@@ -1,5 +1,6 @@
 // 离线缓存：先用缓存秒开，同时在后台更新（下次打开即为新版本）
-const CACHE = 'parfait-v1';
+const CACHE = 'parfait-v2';
+const FONT_CACHE = 'parfait-fonts-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -20,14 +21,30 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== FONT_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  // 手写字体（Google Fonts）：用过一次就缓存下来，离线也能显示
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.open(FONT_CACHE).then(async (cache) => {
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res.ok || res.type === 'opaque') cache.put(req, res.clone());
+        return res;
+      })
+    );
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
   const key = req.mode === 'navigate' ? './index.html' : req;
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {

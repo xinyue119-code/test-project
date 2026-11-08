@@ -186,7 +186,7 @@ function rowCard(e, extra = '', snippet = false) {
   const th = e.photos?.[0]?.thumb;
   return `
     <div class="card row-card">
-      ${th ? `<img class="thumb" src="${urlFor(th)}" alt="" loading="lazy">` : '<div class="thumb thumb-empty">🍨</div>'}
+      <span class="thumb-wrap ${typeOf(e.type).cls}">${th ? `<img class="thumb" src="${urlFor(th)}" alt="" loading="lazy">` : '<img class="thumb thumb-empty" src="icons/icon.svg" alt="">'}</span>
       <div class="row-body">
         <div class="row-name">${esc(nameOf(e))}</div>
         <div class="row-meta">${typeTag(e.type)}${e.rating ? stars(e.rating, 'sm') : ''}</div>
@@ -262,7 +262,7 @@ function tlItemHTML(it) {
       return `
         <div class="tl-month ${it.count ? '' : 'empty'}">
           <div class="tl-month-label"><b>${it.m}月</b><span>${it.y}</span></div>
-          <span class="tl-month-count">${it.count ? `去了 <b>${it.count}</b> 次` : '这个月没来'}</span>
+          ${it.count ? `<span class="tl-month-count"><small>去了</small><b>${it.count}</b><small>次</small></span>` : '<span class="tl-month-none">这个月没来</span>'}
         </div>`;
     case 'break': {
       const o = it.older, n = it.newer;
@@ -270,7 +270,7 @@ function tlItemHTML(it) {
       return `<div class="tl-break"><span>${range} · ${it.months} 个月没来</span></div>`;
     }
     case 'now':
-      return `<div class="tl-now"><span class="tl-now-dot"></span>今天 · ${it.since === 0 ? '今天来过啦 🍓' : `距上次 ${it.since} 天`}</div>`;
+      return `<div class="tl-now"><span class="tl-now-dot"></span>今天 · ${it.since === 0 ? '今天来过啦' : `距上次 ${it.since} 天`}</div>`;
     case 'entry': {
       const e = it.e;
       const gap = it.gap == null ? '' : it.gap === 0 ? ' · 同一天' : ` · 隔 ${it.gap} 天`;
@@ -295,7 +295,7 @@ async function viewTimeline() {
         <img src="icons/icon.svg" alt="">
         <h2>还没有记录呢</h2>
         <p>今天在店里吃了什么？记下来吧</p>
-        <a class="btn primary" href="#/new">记下第一杯 🍓</a>
+        <a class="btn primary" href="#/new">记下第一杯</a>
       </div>`;
     return;
   }
@@ -352,7 +352,7 @@ async function viewCalendar() {
       cells += `
         <button class="cal-cell ${es.length ? 'has' : ''} ${key === tk ? 'today' : ''} ${key === cal.sel ? 'sel' : ''}" data-day="${key}" aria-label="${cal.m}月${d}日${es.length ? `，${es.length} 条记录` : ''}">
           <span class="cal-box">
-            ${cover ? `<img src="${urlFor(cover)}" alt="" loading="lazy">` : es.length ? '<span class="cal-noimg">🍨</span>' : ''}
+            ${cover ? `<img src="${urlFor(cover)}" alt="" loading="lazy">` : es.length ? '<span class="cal-noimg"></span>' : ''}
             <span class="cal-num">${d}</span>
             ${es.length ? `<span class="cal-badge">${es.length}</span>` : ''}
           </span>
@@ -482,20 +482,20 @@ async function viewForm(id, dateParam) {
         ${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-v="${v}" aria-label="${v} 星">★</button>`).join('')}
         <span class="star-label" id="starLabel"></span>
       </div>
-      <label class="field"><span class="field-label">🗣 我的要求（跟店长说了什么）</span>
+      <label class="field"><span class="field-label">我的要求 <em>跟店长说了什么</em></span>
         <textarea class="in" name="request" rows="2" placeholder="例：想要酸一点、不要太甜、加草莓…">${esc(e?.request)}</textarea></label>
-      <label class="field"><span class="field-label">🍨 实际做出来的</span>
+      <label class="field"><span class="field-label">实际做出来的</span>
         <textarea class="in" name="actual" rows="2" placeholder="店长做了什么、用了哪些料…">${esc(e?.actual)}</textarea></label>
-      <label class="field"><span class="field-label">💭 感想</span>
+      <label class="field"><span class="field-label">感想</span>
         <textarea class="in" name="thoughts" rows="4" placeholder="吃下去的感觉、心情、想下次试试的…">${esc(e?.thoughts)}</textarea></label>
-      <div class="field"><span class="field-label">🏷 标签</span>
+      <div class="field"><span class="field-label">标签</span>
         <div class="in tag-box" id="tagBox"><span id="tagChips" style="display:contents"></span><input id="tagInput" placeholder="输入后按回车" enterkeyhint="done"></div>
         <div class="tag-sugg" id="tagSugg"></div>
       </div>
       <div class="row2">
-        <label class="field"><span class="field-label">🕒 时间</span>
+        <label class="field"><span class="field-label">时间</span>
           <input class="in" type="datetime-local" name="datetime" value="${dt}" required></label>
-        <label class="field"><span class="field-label">💰 价格（选填）</span>
+        <label class="field"><span class="field-label">价格 <em>选填</em></span>
           <span class="price-wrap"><span>¥</span><input class="in" name="price" inputmode="decimal" placeholder="—" value="${e?.price ?? ''}"></span></label>
       </div>
     </form>
@@ -514,7 +514,7 @@ async function viewForm(id, dateParam) {
     photosEl.innerHTML =
       st.photos.map((p, i) => `<div class="photo-item"><img src="${urlFor(p.thumb)}" alt=""><button type="button" class="rm" data-rm="${i}" aria-label="删除照片">×</button></div>`).join('') +
       Array.from({ length: st.busy }, () => '<div class="photo-item loading">压缩中…</div>').join('') +
-      `<label class="photo-add"><input type="file" accept="image/*" multiple id="fileIn"><span class="ico">📷</span><span>${st.photos.length ? '再加' : '拍照/相册'}</span></label>`;
+      `<label class="photo-add"><input type="file" accept="image/*" multiple id="fileIn"><svg class="ico" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 11.5c0-1.4 1-2.5 2.4-2.5h3.2l2-3h6.8l2 3h3.2c1.4 0 2.4 1.1 2.4 2.5v11c0 1.4-1 2.5-2.4 2.5H7.4C6 25 5 23.9 5 22.5z"/><circle cx="16" cy="17" r="4.6"/></svg><span>${st.photos.length ? '再加' : '拍照/相册'}</span></label>`;
     saveBtn.disabled = st.busy > 0;
   };
   photosEl.addEventListener('click', (ev) => {
@@ -637,7 +637,7 @@ async function viewForm(id, dateParam) {
     }
     invalidate();
     requestPersist();
-    toast(isNew ? '记下来啦 ✨' : '已更新');
+    toast(isNew ? '记下来啦' : '已更新');
     if (isNew) {
       const day = entry.datetime.slice(0, 10);
       if (prevKey === 'calendar' || dateParam) {
@@ -680,15 +680,15 @@ async function viewDetail(id) {
   }
   headerSub(fmtShort(e.datetime).split(' ').slice(0, 2).join(' '), `<a class="text-btn" href="#/edit/${e.id}">编辑</a>`);
   const n = e.photos?.length || 0;
-  const sec = (icon, title, text, cls = '') => (text ? `<section class="card d-sec ${cls}"><h4>${icon} ${title}</h4><p>${esc(text)}</p></section>` : '');
+  const sec = (icon, title, text, cls = '') => (text ? `<section class="card d-sec ${cls}"><h4>${title}</h4><p>${esc(text)}</p></section>` : '');
   let vs = '';
   if (e.request && e.actual) {
-    vs = `<div class="d-vs">${sec('🗣', '我的要求', e.request)}<div class="arrow">↓</div>${sec('🍨', '实际做出来的', e.actual)}</div>`;
+    vs = `<div class="d-vs">${sec('', '我的要求', e.request)}<div class="arrow">↓</div>${sec('', '实际做出来的', e.actual)}</div>`;
   } else {
-    vs = sec('🗣', '我的要求', e.request) + sec('🍨', '实际做出来的', e.actual);
+    vs = sec('', '我的要求', e.request) + sec('', '实际做出来的', e.actual);
   }
   view.innerHTML = `
-    ${n ? `<div class="gallery" id="gallery">${e.photos.map((p, i) => `<img src="${urlFor(p.full)}" data-i="${i}" alt="照片 ${i + 1}">`).join('')}</div>
+    ${n ? `<div class="gallery-wrap"><div class="gallery" id="gallery">${e.photos.map((p, i) => `<img src="${urlFor(p.full)}" data-i="${i}" alt="照片 ${i + 1}">`).join('')}</div></div>
       ${n > 1 ? `<div class="gallery-count">共 ${n} 张 · 左右滑动 · 点开看大图</div>` : ''}` : ''}
     <section class="card d-head">
       <div class="d-top">${typeTag(e.type)}<span class="d-price">${priceText(e.price)}</span></div>
@@ -697,10 +697,10 @@ async function viewDetail(id) {
       <div class="d-date">${fmtFull(e.datetime)}</div>
     </section>
     ${vs}
-    ${sec('💭', '感想', e.thoughts, 'thoughts')}
+    ${sec('', '感想', e.thoughts, 'thoughts')}
     ${e.tags?.length ? `<div class="d-tags">${e.tags.map((t) => `<a class="chip sm" href="#/review?tag=${encodeURIComponent(t)}"># ${esc(t)}</a>`).join('')}</div>` : ''}
     <div class="d-actions">
-      <a class="btn ghost" href="#/edit/${e.id}">✏️ 编辑</a>
+      <a class="btn ghost" href="#/edit/${e.id}">编辑</a>
       <button class="btn danger" id="delBtn">删除</button>
     </div>`;
 
@@ -761,7 +761,7 @@ async function viewReview(tagParam) {
     </div>
     <div class="search"><input class="in" type="search" id="q" placeholder="搜索名称、要求、感想、标签…" value="${esc(rv.q)}" enterkeyhint="search"></div>
     <div class="quick">
-      <button class="btn ghost" data-preset="top">🏆 高分记录</button>
+      <button class="btn ghost" data-preset="top">★ 高分记录</button>
       <button class="btn ghost" data-preset="reset">清除筛选</button>
     </div>
     <div class="filter-row" id="fType"><span class="fl">类型</span>
@@ -778,13 +778,13 @@ async function viewReview(tagParam) {
     <div class="results" id="results"></div>
 
     <section class="card backup">
-      <h3>💾 数据备份</h3>
+      <h3>数据备份</h3>
       <p>数据只保存在这台设备的浏览器里。换手机或清理浏览器前，记得导出备份（含照片）。</p>
       <div class="btns">
         <button class="btn ghost" id="expBtn">导出 JSON</button>
         <label class="btn ghost">导入 JSON<input type="file" accept="application/json,.json" id="impIn" hidden></label>
       </div>
-      ${installPrompt ? '<button class="btn primary install" id="installBtn">📲 添加到主屏幕</button>' : ''}
+      ${installPrompt ? '<button class="btn primary install" id="installBtn">添加到主屏幕</button>' : ''}
       <div class="info" id="storageInfo">${isIOS && !standalone ? '在 Safari 里点「分享」→「添加到主屏幕」，就能像 App 一样离线使用。<br>' : ''}</div>
     </section>`;
 
@@ -922,7 +922,7 @@ async function importJSON(file) {
   await db.putMany(arr.map(normalizeImported));
   invalidate();
   requestPersist();
-  toast(`已导入 ${arr.length} 条记录 🎉`);
+  toast(`已导入 ${arr.length} 条记录`);
   render();
 }
 
