@@ -1,4 +1,4 @@
-/* 芭菲日记 · 水彩手帐风 */
+/* 饕餮日记 · 水彩手帐风 */
 :root {
   --paper: #F8F3E9;
   --sheet: #FFFDF8;
@@ -155,6 +155,19 @@ body.is-form .tabbar { display: none; }
 .t-order.tag-type { color: var(--sky); }
 .t-special.tag-type { color: var(--shu); }
 .t-trial.tag-type { color: #6E9440; }
+
+/* 分类：水彩色块底的小标签 */
+.tag-cat {
+  display: inline-block; font-family: var(--f-hand); font-size: 12px; line-height: 1.5; padding: 0 8px;
+  border-radius: 46% 54% 50% 50% / 55% 45% 55% 45%; white-space: nowrap; color: var(--ink);
+}
+.c-dessert.tag-cat { background: rgba(243, 179, 184, .55); }
+.c-meal.tag-cat { background: rgba(224, 169, 59, .38); }
+.type-pick.cat-pick { grid-template-columns: repeat(2, 1fr); }
+.cat-pick button { min-height: 54px; font-size: 18px; }
+.type-pick button.on.c-dessert { color: var(--ink); border-color: var(--ink); background: rgba(243, 179, 184, .45); }
+.type-pick button.on.c-meal { color: var(--ink); border-color: var(--ink); background: rgba(224, 169, 59, .35); }
+.d-tags { display: inline-flex; align-items: center; gap: 8px; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 4px;

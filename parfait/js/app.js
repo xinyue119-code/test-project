@@ -6,6 +6,10 @@ const TYPES = {
   special: { label: '店长特制', cls: 't-special' },
   trial: { label: '试作', cls: 't-trial' },
 };
+const CATS = {
+  dessert: { label: '甜品', cls: 'c-dessert' },
+  meal: { label: '正餐', cls: 'c-meal' },
+};
 const RATING_TEXT = ['', '一般般', '还行', '不错', '好吃！', '超爱！'];
 const PX_PER_DAY = 12; // 时光轴：每隔一天，竖线多长 12px
 const PHOTO_MAX = 1600; // 原图压缩后最长边
@@ -40,6 +44,8 @@ function stars(n, cls = '') {
   return `<span class="stars ${cls}" aria-label="${n} 星">${s}</span>`;
 }
 const typeOf = (t) => TYPES[t] || TYPES.order;
+const catOf = (c) => CATS[c] || CATS.dessert; // 旧记录没有分类，算作甜品
+const catTag = (c) => `<span class="tag-cat ${catOf(c).cls}">${catOf(c).label}</span>`;
 const typeTag = (t) => `<span class="tag-type ${typeOf(t).cls}">${typeOf(t).label}</span>`;
 const priceText = (p) => (p == null ? '' : `¥${Number(p).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`);
 const nameOf = (e) => e.name || '未命名';
@@ -170,7 +176,7 @@ topbar.addEventListener('click', (ev) => {
 
 function headerMain(active) {
   topbar.innerHTML = `
-    <div class="brand"><img src="icons/icon.svg" alt=""><span>芭菲日记</span></div>
+    <div class="brand"><img src="icons/icon.svg" alt=""><span>饕餮日记</span></div>
     <div class="seg">
       <a href="#/timeline" data-reset class="${active === 'timeline' ? 'on' : ''}">时光轴</a>
       <a href="#/calendar" data-reset class="${active === 'calendar' ? 'on' : ''}">日历</a>
@@ -194,7 +200,7 @@ function rowCard(e, extra = '', snippet = false) {
       <span class="thumb-wrap ${typeOf(e.type).cls}">${th ? `<img class="thumb" src="${urlFor(th)}" alt="" loading="lazy">` : '<img class="thumb thumb-empty" src="icons/icon.svg" alt="">'}</span>
       <div class="row-body">
         <div class="row-name">${esc(nameOf(e))}</div>
-        <div class="row-meta">${typeTag(e.type)}${e.rating ? stars(e.rating, 'sm') : ''}</div>
+        <div class="row-meta">${catTag(e.category)}${typeTag(e.type)}${e.rating ? stars(e.rating, 'sm') : ''}</div>
         <div class="row-date">${fmtShort(e.datetime)}${extra}</div>
         ${snippet && noteOf(e) ? `<div class="row-snippet">${esc(noteOf(e))}</div>` : ''}
       </div>
@@ -299,8 +305,8 @@ async function viewTimeline() {
       <div class="empty">
         <img src="icons/icon.svg" alt="">
         <h2>还没有记录呢</h2>
-        <p>今天在店里吃了什么？记下来吧</p>
-        <a class="btn primary" href="#/new">记下第一杯</a>
+        <p>今天吃了什么？记下来吧</p>
+        <a class="btn primary" href="#/new">记下第一笔</a>
       </div>`;
     return;
   }
@@ -467,6 +473,7 @@ async function viewForm(id, dateParam) {
   const now = new Date();
   const st = {
     photos: e ? [...(e.photos || [])] : [],
+    category: e?.category || 'dessert',
     type: e?.type || 'order',
     rating: e?.rating || 0,
     busy: 0,
@@ -478,6 +485,9 @@ async function viewForm(id, dateParam) {
     <form class="form" id="f" autocomplete="off">
       <div class="photo-strip" id="photos"></div>
       <input class="in big" name="name" placeholder="吃了什么？" value="${esc(e?.name)}" enterkeyhint="next" maxlength="60">
+      <div class="type-pick cat-pick" id="catPick">
+        ${Object.entries(CATS).map(([k, v]) => `<button type="button" data-cat="${k}" class="${v.cls}">${v.label}</button>`).join('')}
+      </div>
       <div class="type-pick" id="typePick">
         ${Object.entries(TYPES).map(([k, v]) => `<button type="button" data-type="${k}" class="${v.cls}">${v.label}</button>`).join('')}
       </div>
@@ -528,6 +538,14 @@ async function viewForm(id, dateParam) {
   });
   drawPhotos();
 
+  // 分类
+  const drawCat = () => $$('#catPick button').forEach((b) => b.classList.toggle('on', b.dataset.cat === st.category));
+  $('#catPick').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-cat]');
+    if (b) { st.category = b.dataset.cat; drawCat(); }
+  });
+  drawCat();
+
   // 类型
   const drawType = () => $$('#typePick button').forEach((b) => b.classList.toggle('on', b.dataset.type === st.type));
   $('#typePick').addEventListener('click', (ev) => {
@@ -564,6 +582,7 @@ async function viewForm(id, dateParam) {
       id: e?.id || uid(),
       datetime: String(fd.get('datetime') || '').slice(0, 16) || toLocal(new Date()),
       name: String(fd.get('name') || '').trim(),
+      category: st.category,
       type: st.type,
       photos: st.photos,
       rating: st.rating,
@@ -635,7 +654,7 @@ async function viewDetail(id) {
     ${n ? `<div class="gallery-wrap"><div class="gallery" id="gallery">${e.photos.map((p, i) => `<img src="${urlFor(p.full)}" data-i="${i}" alt="照片 ${i + 1}">`).join('')}</div></div>
       ${n > 1 ? `<div class="gallery-count">共 ${n} 张 · 左右滑动 · 点开看大图</div>` : ''}` : ''}
     <section class="card d-head">
-      <div class="d-top">${typeTag(e.type)}<span class="d-price">${priceText(e.price)}</span></div>
+      <div class="d-top"><span class="d-tags">${catTag(e.category)}${typeTag(e.type)}</span><span class="d-price">${priceText(e.price)}</span></div>
       <h1>${esc(nameOf(e))}</h1>
       <div class="d-rating">${e.rating ? `${stars(e.rating, 'lg')}<span>${RATING_TEXT[e.rating]}</span>` : '<span>未评分</span>'}</div>
       <div class="d-date">${fmtFull(e.datetime)}</div>
@@ -660,13 +679,14 @@ async function viewDetail(id) {
 }
 
 /* ================= 回顾 ================= */
-const rv = { q: '', type: 'all', min: 0, sort: 'new' };
+const rv = { q: '', cat: 'all', type: 'all', min: 0, sort: 'new' };
 let installPrompt = null;
 window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); installPrompt = ev; });
 
 function filterList(list) {
   const q = rv.q.trim().toLowerCase();
   let out = list.filter((e) => {
+    if (rv.cat !== 'all' && catOf(e.category) !== CATS[rv.cat]) return false;
     if (rv.type !== 'all' && e.type !== rv.type) return false;
     if (rv.min && (e.rating || 0) < rv.min) return false;
     if (q) {
@@ -699,6 +719,9 @@ async function viewReview() {
       <button class="btn ghost" data-preset="top">★ 高分记录</button>
       <button class="btn ghost" data-preset="reset">清除筛选</button>
     </div>
+    <div class="filter-row" id="fCat"><span class="fl">分类</span>
+      ${[['all', '全部'], ...Object.entries(CATS).map(([k, v]) => [k, v.label])].map(([k, l]) => `<button class="chip" data-cat="${k}">${l}</button>`).join('')}
+    </div>
     <div class="filter-row" id="fType"><span class="fl">类型</span>
       ${[['all', '全部'], ...Object.entries(TYPES).map(([k, v]) => [k, v.label])].map(([k, l]) => `<button class="chip" data-type="${k}">${l}</button>`).join('')}
     </div>
@@ -723,6 +746,7 @@ async function viewReview() {
     </section>`;
 
   const sync = () => {
+    $$('#fCat .chip').forEach((b) => b.classList.toggle('on', b.dataset.cat === rv.cat));
     $$('#fType .chip').forEach((b) => b.classList.toggle('on', b.dataset.type === rv.type));
     $$('#fMin .chip').forEach((b) => b.classList.toggle('on', Number(b.dataset.min) === rv.min));
     $$('#fSort button').forEach((b) => b.classList.toggle('on', b.dataset.sort === rv.sort));
@@ -737,11 +761,12 @@ async function viewReview() {
   view.onclick = (ev) => {
     const b = ev.target.closest('button');
     if (!b) return;
-    if (b.dataset.type) rv.type = b.dataset.type;
+    if (b.dataset.cat) rv.cat = b.dataset.cat;
+    else if (b.dataset.type) rv.type = b.dataset.type;
     else if (b.dataset.min != null) rv.min = Number(b.dataset.min);
     else if (b.dataset.sort) rv.sort = b.dataset.sort;
     else if (b.dataset.preset === 'top') { rv.min = 4; rv.sort = 'rating'; }
-    else if (b.dataset.preset === 'reset') { Object.assign(rv, { q: '', type: 'all', min: 0, sort: 'new' }); $('#q').value = ''; }
+    else if (b.dataset.preset === 'reset') { Object.assign(rv, { q: '', cat: 'all', type: 'all', min: 0, sort: 'new' }); $('#q').value = ''; }
     else return;
     sync();
   };
@@ -799,7 +824,7 @@ async function exportJSON() {
       photos: await Promise.all((e.photos || []).map(async (p) => ({ full: await blobToDataURL(p.full), thumb: await blobToDataURL(p.thumb) }))),
     }))),
   };
-  const filename = `parfait-diary-${todayKey()}.json`;
+  const filename = `taotie-diary-${todayKey()}.json`;
   const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
   const file = new File([blob], filename, { type: 'application/json' });
   const mobile = matchMedia('(pointer: coarse)').matches;
@@ -828,6 +853,7 @@ function normalizeImported(e) {
     id: String(e.id || uid()),
     datetime: dt,
     name: String(e.name || ''),
+    category: CATS[e.category] ? e.category : 'dessert',
     type: TYPES[e.type] ? e.type : 'order',
     photos: (Array.isArray(e.photos) ? e.photos : [])
       .map((p) => ({ full: dataURLToBlob(p?.full), thumb: dataURLToBlob(p?.thumb || p?.full) }))
